@@ -72,7 +72,7 @@ research  ──→  niche  ──→  ideas  ──→  write  ──→  revie
 ```bash
 node bin/notekit.mjs research                          # config/niches.json の全候補
 node bin/notekit.mjs research --niche athlete-career --pages 3
-node bin/notekit.mjs research --keyword "アスリート 転職,引退 就活"
+node bin/notekit.mjs research --keyword "保険営業 辞めたい,営業 成果が出ない"
 ```
 
 note の公開検索から、キーワードごとに **有料記事の比率・価格帯の分布・スキ数・上位アカウント** を集計して `data/market.json` に保存します。
@@ -115,10 +115,13 @@ node bin/notekit.mjs write --id 2026-08-13-xxxxx --facts my-facts.md
 
 ```markdown
 <!-- my-facts.md の例 -->
-- 引退後3ヶ月で40社落ちた。落ちた原因は競技の話しかしていなかったこと
-- 面接官に「で、それは仕事で何に使えるの?」と言われて答えられなかった
-- 職務経歴書を「週20時間の練習計画を自分で設計・PDCA」に書き換えたら通過率が上がった
+- 2020年4月、コロナ禍で入社。対面のアポが物理的に組めなかった
+- 22歳の自分から保険に入る人はほぼいなかった。月収15万円の時期があった
+- 知人リストが尽きた後、◯◯に切り替えたら紹介が出るようになった
+- 練習が週◯日あるので、営業の時間は◯時〜◯時に固めている
 ```
+
+保険・金融の方は、`config/persona.md` の「保険営業ならではの追加ルール」も必ず読んでください（商品名・収入額・顧客特定情報を書かない、副業規程の確認など）。
 
 渡していない事実は、AIが勝手に体験談として書かないよう `【要追記: 〜】` というプレースホルダで残ります。**公開前に必ず自分で埋めてください。** これがこのツールの一番大事な安全装置です。
 
