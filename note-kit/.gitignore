@@ -6,3 +6,11 @@ data/research/raw/
 
 # API利用量のローカルログ（テスト実行でも書き込まれる）
 data/usage.json
+
+# --- 一次情報ファイル（絶対に公開しない） ---
+# このリポジトリは public。--facts に渡すファイルには、商談の話法・顧客情報・
+# 社内規程に触れうる内容が入るため、追跡対象から外している。
+# ファイル名は my-facts*.md / facts/ 以下 / *.facts.md のいずれかにすること。
+my-facts*.md
+*.facts.md
+facts/
