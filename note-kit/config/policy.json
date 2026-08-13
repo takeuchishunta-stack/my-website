@@ -1,0 +1,47 @@
+{
+  "price": {
+    "default": 500,
+    "min": 300,
+    "max": 1000
+  },
+  "article": {
+    "totalCharsMin": 4000,
+    "totalCharsMax": 9000,
+    "freeSectionRatio": 0.35,
+    "headingsMin": 5,
+    "concreteExamplesMin": 3
+  },
+  "qualityGate": {
+    "passScore": 80,
+    "blockOnRiskyClaims": true
+  },
+  "cadence": {
+    "articlesPerWeek": 3,
+    "freeToPaidRatio": "2:1",
+    "xPostsPerDay": 3,
+    "maxPublishPerDay": 1
+  },
+  "_riskyPhrasesNote": "活用形にマッチさせるため語幹で書く（例: 「必ず稼げ」は「必ず稼げます」「必ず稼げる」の両方を拾う）",
+  "riskyPhrases": [
+    "必ず稼げ",
+    "絶対に稼げ",
+    "確実に稼げ",
+    "誰でも稼げ",
+    "誰でも月収",
+    "不労所得が確定",
+    "元本保証",
+    "リスクゼロ",
+    "100%成功",
+    "必ず痩せ",
+    "確実に痩せ",
+    "病気が治",
+    "医学的に証明",
+    "副作用なし",
+    "誰でも簡単に"
+  ],
+  "notes": [
+    "freeSectionRatio は本文全体に対する無料部分の目安。低すぎると読者が価値を判断できず売れない。",
+    "maxPublishPerDay を超える投稿はnoteのスパム判定・アカウント評価の観点から推奨しない。",
+    "riskyPhrases は景表法・薬機法・金商法まわりで典型的にアウトになりやすい断定表現。検出時は必ず人間が判断する。"
+  ]
+}

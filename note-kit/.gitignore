@@ -1,0 +1,8 @@
+node_modules/
+.env
+
+# リサーチの生データはサイズが大きく再取得可能なので追跡しない
+data/research/raw/
+
+# API利用量のローカルログ（テスト実行でも書き込まれる）
+data/usage.json

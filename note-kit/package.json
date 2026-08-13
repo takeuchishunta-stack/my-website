@@ -1,0 +1,28 @@
+{
+  "name": "note-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "note有料記事の量産・販売とX運用を半自動化するツールキット",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "notekit": "./bin/notekit.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "notekit": "node bin/notekit.mjs",
+    "research": "node bin/notekit.mjs research",
+    "niche": "node bin/notekit.mjs niche",
+    "ideas": "node bin/notekit.mjs ideas",
+    "write": "node bin/notekit.mjs write",
+    "review": "node bin/notekit.mjs review",
+    "x": "node bin/notekit.mjs x",
+    "plan": "node bin/notekit.mjs plan",
+    "status": "node bin/notekit.mjs status"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0"
+  }
+}
