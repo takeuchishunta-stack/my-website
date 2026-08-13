@@ -1,11 +1,21 @@
 node_modules/
 .env
 
-# リサーチの生データはサイズが大きく再取得可能なので追跡しない
-data/research/raw/
-
-# API利用量のローカルログ（テスト実行でも書き込まれる）
-data/usage.json
+# --- 生成物は追跡しない（このリポジトリは public のため） ---
+# data/articles/ には有料記事の本文が入る。公開リポジトリに置くと
+# 販売前に無料で読めてしまい、商品価値が消える。
+# data/x/ と data/ideas.json も未公開の制作物なので同様に扱う。
+data/*
+!data/.gitkeep
+!data/research/
+data/research/*
+!data/research/.gitkeep
+!data/articles/
+data/articles/*
+!data/articles/.gitkeep
+!data/x/
+data/x/*
+!data/x/.gitkeep
 
 # --- 一次情報ファイル（絶対に公開しない） ---
 # このリポジトリは public。--facts に渡すファイルには、商談の話法・顧客情報・
