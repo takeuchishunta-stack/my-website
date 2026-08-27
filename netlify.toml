@@ -1,0 +1,37 @@
+# ATHLETE BRIDGE の Netlify 設定。
+# ダッシュボード設定よりこのファイルが優先されるため、公開設定はここで一元管理する。
+
+[build]
+  # ビルド不要の静的サイト。HTML はリポジトリ直下に置いている。
+  publish = "."
+  command = ""
+
+# note-kit は記事執筆用の内部ツールで、サイトの一部ではない。
+# 公開ディレクトリに含まれてしまうため、URL からは到達できないようにする。
+[[redirects]]
+  from = "/note-kit/*"
+  to = "/404.html"
+  status = 404
+
+[[redirects]]
+  from = "/scripts/*"
+  to = "/404.html"
+  status = 404
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# CSS / JS はファイル名を変えたときだけ更新されれば十分なので長めにキャッシュする。
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"

@@ -1,0 +1,41 @@
+name: サイト検証
+
+# push と Pull Request のたびに自動で走る。
+# 検証に失敗するとコミットに赤いチェックが付き、壊れた状態の公開に気付ける。
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check-site:
+    name: HTML・リンク検証
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: サイトを検証
+        run: node scripts/check-site.mjs
+
+  test-note-kit:
+    name: note-kit テスト
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 依存関係をインストール
+        working-directory: note-kit
+        run: npm ci
+
+      - name: テストを実行
+        working-directory: note-kit
+        run: npm test
