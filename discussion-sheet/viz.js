@@ -29,8 +29,8 @@ const Viz = (() => {
   }
 
   // ---- 棒グラフ（単系列・縦）: 売上高などの推移 --------------------------------
-  function columnChart(labels, values, { width = 560, height = 220, color = PALETTE.series[0], unit = '' } = {}) {
-    const padL = 56, padR = 56, padT = 28, padB = 32;
+  function columnChart(labels, values, { width = 500, height = 130, color = PALETTE.series[0], unit = '' } = {}) {
+    const padL = 56, padR = 56, padT = 18, padB = 26;
     const plotW = width - padL - padR, plotH = height - padT - padB;
     const max = Math.max(...values.filter(v => v != null), 1) * 1.15;
     const n = values.length;
@@ -52,9 +52,9 @@ const Viz = (() => {
   }
 
   // ---- グループ化棒グラフ（最大3系列）: キャッシュフローの推移など -----------------
-  function groupedBarChart(labels, series, { width = 560, height = 240, unit = '' } = {}) {
+  function groupedBarChart(labels, series, { width = 500, height = 140, unit = '' } = {}) {
     // series: [{name, values:[...]}, ...] 最大3系列
-    const padL = 56, padR = 56, padT = 36, padB = 32;
+    const padL = 56, padR = 56, padT = 16, padB = 26;
     const plotW = width - padL - padR, plotH = height - padT - padB;
     const n = labels.length;
     const sN = series.length;
@@ -91,8 +91,8 @@ const Viz = (() => {
   }
 
   // ---- 折れ線グラフ（最大2系列・%推移向け） -----------------------------------
-  function lineChart(labels, series, { width = 560, height = 220, unit = '%', directLabel = true } = {}) {
-    const padL = 56, padR = 56, padT = 20, padB = 32;
+  function lineChart(labels, series, { width = 500, height = 130, unit = '%', directLabel = true } = {}) {
+    const padL = 56, padR = 56, padT = 14, padB = 26;
     const plotW = width - padL - padR, plotH = height - padT - padB;
     const n = labels.length;
     const allValues = series.flatMap(s => s.values).filter(v => v != null);
@@ -107,6 +107,21 @@ const Viz = (() => {
     if (min < 0 && max > 0) grid += `<line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${width - padR}" y2="${zeroY.toFixed(1)}" stroke="${PALETTE.baseline}" stroke-width="1"/>`;
     else grid += `<line x1="${padL}" y1="${(padT + plotH).toFixed(1)}" x2="${width - padR}" y2="${(padT + plotH).toFixed(1)}" stroke="${PALETTE.baseline}" stroke-width="1"/>`;
 
+    // 終点の直接ラベルが近い値で重ならないよう、Y位置の最小間隔を確保する
+    const lastIdxAll = n - 1;
+    const labelPositions = series.map((s) => {
+      const lv = s.values[lastIdxAll];
+      return lv == null ? null : y(lv);
+    });
+    const MIN_GAP = 13;
+    const order = labelPositions.map((v, i) => i).filter(i => labelPositions[i] != null).sort((a, b) => labelPositions[a] - labelPositions[b]);
+    for (let k = 1; k < order.length; k++) {
+      const prev = order[k - 1], cur = order[k];
+      if (labelPositions[cur] - labelPositions[prev] < MIN_GAP) {
+        labelPositions[cur] = labelPositions[prev] + MIN_GAP;
+      }
+    }
+
     let lines = '';
     series.forEach((s, si) => {
       const color = PALETTE.series[si];
@@ -120,7 +135,7 @@ const Viz = (() => {
         const lastIdx = s.values.length - 1;
         const lv = s.values[lastIdx];
         if (lv != null) {
-          lines += `<text x="${(x(lastIdx) + 8).toFixed(1)}" y="${y(lv).toFixed(1)}" font-size="12" font-weight="600" fill="${PALETTE.ink}" dominant-baseline="middle">${lv.toFixed(1)}${unit}</text>`;
+          lines += `<text x="${(x(lastIdx) + 8).toFixed(1)}" y="${labelPositions[si].toFixed(1)}" font-size="12" font-weight="600" fill="${PALETTE.ink}" dominant-baseline="middle">${lv.toFixed(1)}${unit}</text>`;
         }
       }
     });
