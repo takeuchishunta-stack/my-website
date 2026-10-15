@@ -43,8 +43,8 @@ const Scoring = (() => {
       bands: [[15, 5], [10, 4], [7, 3], [4, 2], [1, 1], [-Infinity, 0]],
     },
     cashFlowScore: {
-      category: 'profitability', label: '収益力（キャッシュフロー額）[千円]', maxPoints: 5, direction: 'higher',
-      bands: [[50000, 5], [20000, 4], [5000, 3], [1000, 2], [1, 1], [-Infinity, 0]],
+      category: 'profitability', label: '収益力（キャッシュフロー額）[円]', maxPoints: 5, direction: 'higher',
+      bands: [[50000000, 5], [20000000, 4], [5000000, 3], [1000000, 2], [1, 1], [-Infinity, 0]],
     },
     ordinaryIncomeGrowth: {
       category: 'growth', label: '経常利益増加率[%]', maxPoints: 25, direction: 'higher',
@@ -59,8 +59,8 @@ const Scoring = (() => {
       bands: [[10, 15], [5, 10], [2.5, 7], [1, 4], [0, 2], [-Infinity, 0]],
     },
     cashFlowAmount: {
-      category: 'repayment', label: 'キャッシュフロー額[千円]', maxPoints: 20, direction: 'higher',
-      bands: [[100000, 20], [50000, 15], [20000, 10], [5000, 5], [1, 2], [-Infinity, 0]],
+      category: 'repayment', label: 'キャッシュフロー額[円]', maxPoints: 20, direction: 'higher',
+      bands: [[100000000, 20], [50000000, 15], [20000000, 10], [5000000, 5], [1000, 2], [-Infinity, 0]],
     },
   };
 

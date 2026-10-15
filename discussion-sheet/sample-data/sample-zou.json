@@ -10,12 +10,23 @@
   "totalShares": 300,
   "treasuryShares": 0,
   "shareholders": [
-    { "name": "知見 雅", "shares": 200, "role": "代表取締役" },
-    { "name": "宮﨑 友哉", "shares": 100, "role": "" }
+    {
+      "name": "知見 雅",
+      "shares": 200,
+      "role": "代表取締役"
+    },
+    {
+      "name": "宮﨑 友哉",
+      "shares": 100,
+      "role": ""
+    }
   ],
   "similarIndustry": {
     "periodLabel": "業種目:広告業（ユーザー入力が必要／国税庁公表データを都度入力）",
-    "A": null, "B": null, "C": null, "D": null,
+    "A": null,
+    "B": null,
+    "C": null,
+    "D": null,
     "note": "国税庁『類似業種比準価額計算上の業種目及び業種目別株価等』より、評価したい時点の広告業(中分類「専門サービス業」配下)のA(株価)・B(配当)・C(利益)・D(純資産)を入力してください。"
   },
   "periods": [
@@ -55,30 +66,30 @@
         "netSales": 73622268,
         "costOfSales": 31621321,
         "sgaDetail": {
-          "outsourcing": 794000,
-          "travel": 1412297,
-          "advertising": 1485394,
-          "delivery": 15306,
-          "fuel": 326669,
-          "officerCompensation": 2200000,
-          "staffSalary": 10440093,
-          "statutoryWelfare": 1538902,
-          "welfare": 171477,
-          "depreciation": 165000,
-          "rent": 6512800,
-          "repair": 3700,
-          "supplies": 3490598,
-          "communication": 1423083,
-          "utilities": 294960,
-          "taxesPublicDues": 1024610,
-          "entertainment": 2317165,
-          "insurance": 58000,
-          "suppliesEquip": 927218,
-          "managementMisc": 796510,
-          "leaseRent": 5155000,
-          "meeting": 1280,
-          "badDebt": 69031,
-          "misc": 64274
+          "外注費": 794000,
+          "旅費交通費": 1412297,
+          "広告宣伝費": 1485394,
+          "発送配達費": 15306,
+          "燃料費": 326669,
+          "役員報酬": 2200000,
+          "事務員給与": 10440093,
+          "法定福利費": 1538902,
+          "福利厚生費": 171477,
+          "減価償却費": 165000,
+          "地代家賃": 6512800,
+          "修繕費": 3700,
+          "事務用消耗品費": 3490598,
+          "通信交通費": 1423083,
+          "水道光熱費": 294960,
+          "租税公課": 1024610,
+          "接待交際費": 2317165,
+          "保険料": 58000,
+          "備品消耗品費": 927218,
+          "管理諸費": 796510,
+          "賃借料": 5155000,
+          "会議費": 1280,
+          "貸倒償却費": 69031,
+          "雑費": 64274
         },
         "nonOperatingIncome": 30373,
         "nonOperatingExpenses": 0,
@@ -88,8 +99,16 @@
         "extraordinaryLoss": 0,
         "incomeTaxes": 370200
       },
-      "officerCompensationDetail": [ { "name": "知見 雅", "amount": 2200000 } ],
-      "loans": { "shortTerm": [], "longTerm": [] },
+      "officerCompensationDetail": [
+        {
+          "name": "知見 雅",
+          "amount": 2200000
+        }
+      ],
+      "loans": {
+        "shortTerm": [],
+        "longTerm": []
+      },
       "officerBorrowings": [],
       "officerLendings": [],
       "dividendsPaid": 0,
@@ -130,32 +149,32 @@
         "netSales": 100496095,
         "costOfSales": 42141039,
         "sgaDetail": {
-          "travel": 2587194,
-          "advertising": 751864,
-          "delivery": 16143,
-          "fuel": 796331,
-          "officerCompensation": 2400000,
-          "training": 956900,
-          "staffSalary": 12136038,
-          "employeeBonus": 580000,
-          "statutoryWelfare": 1853232,
-          "welfare": 417012,
-          "depreciation": 1172673,
-          "leaseFee": 30360,
-          "rent": 5409468,
-          "repair": 1256302,
-          "supplies": 880302,
-          "communication": 2035127,
-          "utilities": 419058,
-          "taxesPublicDues": 1875200,
-          "entertainment": 2386021,
-          "insurance": 223522,
-          "suppliesEquip": 3400094,
-          "managementMisc": 1201866,
-          "leaseRent": 9279222,
-          "meeting": 1200,
-          "badDebt": 85732,
-          "misc": 84031
+          "旅費交通費": 2587194,
+          "広告宣伝費": 751864,
+          "発送配達費": 16143,
+          "燃料費": 796331,
+          "役員報酬": 2400000,
+          "研修費": 956900,
+          "事務員給与": 12136038,
+          "従業員賞与": 580000,
+          "法定福利費": 1853232,
+          "福利厚生費": 417012,
+          "減価償却費": 1172673,
+          "リース料": 30360,
+          "地代家賃": 5409468,
+          "修繕費": 1256302,
+          "事務用消耗品費": 880302,
+          "通信交通費": 2035127,
+          "水道光熱費": 419058,
+          "租税公課": 1875200,
+          "接待交際費": 2386021,
+          "保険料": 223522,
+          "備品消耗品費": 3400094,
+          "管理諸費": 1201866,
+          "賃借料": 9279222,
+          "会議費": 1200,
+          "貸倒償却費": 85732,
+          "雑費": 84031
         },
         "nonOperatingIncome": 1268309,
         "nonOperatingExpenses": 120137,
@@ -165,12 +184,27 @@
         "extraordinaryLoss": 0,
         "incomeTaxes": 1399513
       },
-      "officerCompensationDetail": [ { "name": "知見 雅", "amount": 2400000 } ],
+      "officerCompensationDetail": [
+        {
+          "name": "知見 雅",
+          "amount": 2400000
+        }
+      ],
       "loans": {
         "shortTerm": [],
         "longTerm": [
-          { "lender": "都留信用組合", "balance": 9524000, "rate": null, "guaranteeAmount": 0 },
-          { "lender": "山梨中央銀行", "balance": 4244000, "rate": null, "guaranteeAmount": 0 }
+          {
+            "lender": "都留信用組合",
+            "balance": 9524000,
+            "rate": null,
+            "guaranteeAmount": 0
+          },
+          {
+            "lender": "山梨中央銀行",
+            "balance": 4244000,
+            "rate": null,
+            "guaranteeAmount": 0
+          }
         ]
       },
       "officerBorrowings": [],
@@ -180,6 +214,12 @@
     }
   ],
   "officers": [
-    { "name": "知見 雅", "role": "代表取締役", "age": null, "finalMonthlyCompensation": 200000, "tenureYears": 2 }
+    {
+      "name": "知見 雅",
+      "role": "代表取締役",
+      "age": null,
+      "finalMonthlyCompensation": 200000,
+      "tenureYears": 2
+    }
   ]
 }

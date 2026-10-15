@@ -1,18 +1,39 @@
-/* ディスカッションシート分析ツール — スタイル */
+/* ディスカッションシート分析ツール — スタイル
+   配色は dataviz スキルの検証済みデフォルトパレットに準拠（カテゴリカル slot1-3 は
+   全ペアでCVD安全性が検証済み。ステータス色は固定・他の用途に流用しない）。 */
 :root {
   --bg: #f4f6f8;
   --surface: #ffffff;
-  --ink: #1b2430;
-  --ink-muted: #5b6878;
-  --border: #dde3ea;
+  --ink: #0b0b0b;
+  --ink-secondary: #52514e;
+  --ink-muted: #898781;
+  --border: #e1e0d9;
   --accent: #184a6b;
   --accent-soft: #e8f0f6;
   --warn-bg: #fff6e0;
   --warn-border: #e8c468;
-  --good: #1f7a4d;
-  --bad: #b3372c;
-  --radius: 10px;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --bad: #d03b3b;
+  --radius: 14px;
   --font: "Noto Sans JP", "Hiragino Sans", sans-serif;
+
+  /* カテゴリカル（検証済み slot1-3） */
+  --series-1: #2a78d6; /* blue */
+  --series-2: #eb6834; /* orange */
+  --series-3: #1baf7a; /* aqua */
+
+  /* 観点ごとの装飾バッジ色（データ系列ではなく章アイコンの識別用） */
+  --sec-financial: #2a78d6;
+  --sec-cashflow: #1baf7a;
+  --sec-stock: #6250d6;
+  --sec-coverage: #eb6834;
+  --sec-scoring: #d03b3b;
+  --sec-statements: #52514e;
+}
+@media print {
+  :root { --bg: #ffffff; }
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); }
@@ -60,10 +81,25 @@ button:hover, .btn:hover { filter: brightness(0.97); }
 .tab-panel.active { display: block; }
 
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 16px 18px; margin-bottom: 18px; }
-.card h3 { margin: 0 0 10px; font-size: 0.95rem; color: var(--accent); border-left: 4px solid var(--accent);
-  padding-left: 8px; }
-.card .caption { font-size: 0.78rem; color: var(--ink-muted); margin: -4px 0 10px; }
+  padding: 20px 22px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(11,11,11,0.04); }
+.card h3 { margin: 0 0 14px; font-size: 1rem; color: var(--ink); display: flex; align-items: center; gap: 10px; }
+.card .caption { font-size: 0.78rem; color: var(--ink-secondary); margin: -6px 0 14px; line-height: 1.6; }
+
+/* 章アイコンバッジ：データの色ではなく章の識別用の装飾（本文には常にテキストも伴う） */
+.icon-badge {
+  width: 30px; height: 30px; border-radius: 9px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff;
+}
+.icon-badge svg { width: 17px; height: 17px; }
+
+.section-hero {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
+}
+.section-hero .icon-badge { width: 44px; height: 44px; border-radius: 12px; }
+.section-hero .icon-badge svg { width: 24px; height: 24px; }
+.section-hero h2 { margin: 0; font-size: 1.2rem; color: var(--ink); }
+.section-hero p { margin: 2px 0 0; font-size: 0.82rem; color: var(--ink-secondary); }
 
 table.dsheet { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 table.dsheet th, table.dsheet td { border: 1px solid var(--border); padding: 6px 10px; text-align: right; }
@@ -77,16 +113,29 @@ table.dsheet td.na { color: #999; }
 .grade-badge {
   display: inline-flex; align-items: center; justify-content: center;
   width: 54px; height: 54px; border-radius: 50%; background: var(--accent); color: #fff;
-  font-size: 1.6rem; font-weight: 800; margin-right: 12px;
+  font-size: 1.6rem; font-weight: 800; margin-right: 12px; flex: none;
 }
-.grade-row { display: flex; align-items: center; margin-bottom: 10px; }
-.grade-label { font-size: 0.9rem; color: var(--ink-muted); }
-.grade-label strong { display: block; font-size: 1.05rem; color: var(--ink); }
+.grade-row { display: flex; align-items: center; margin-bottom: 14px; gap: 2px; }
+.grade-label { font-size: 0.9rem; color: var(--ink-secondary); }
+.grade-label strong { display: block; font-size: 1.1rem; color: var(--ink); margin-bottom: 1px; }
+.grade-meter-wrap { margin-top: 6px; }
 
-.kv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.kv-item { background: #fafbfc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
-.kv-item .k { font-size: 0.74rem; color: var(--ink-muted); }
-.kv-item .v { font-size: 1.05rem; font-weight: 700; }
+/* スタットタイル：ラベル＋大きな数値＋（任意）前期比デルタ＋ミニ推移 */
+.kv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.kv-item {
+  background: #fafbfa; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.kv-item .k { font-size: 0.76rem; color: var(--ink-secondary); }
+.kv-item .v { font-size: 1.4rem; font-weight: 600; color: var(--ink); line-height: 1.25; }
+.kv-item .delta { font-size: 0.78rem; font-weight: 600; }
+.kv-item .delta.up-good { color: var(--good); }
+.kv-item .delta.down-bad { color: var(--bad); }
+.kv-item .delta.flat { color: var(--ink-muted); }
+.kv-item .spark { margin-top: 2px; }
+
+.chart-card-body { overflow-x: auto; }
+.legend-row { font-size: 0.78rem; color: var(--ink-secondary); margin-top: 4px; }
 
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .form-grid label { font-size: 0.78rem; color: var(--ink-muted); display: block; }
@@ -97,11 +146,33 @@ table.dsheet td.na { color: #999; }
 
 footer.app-footer { max-width: 1180px; margin: 0 auto; padding: 10px 24px; color: var(--ink-muted); font-size: 0.75rem; }
 
+.cover-page {
+  background: linear-gradient(135deg, var(--accent) 0%, #0f2d42 100%);
+  color: #fff; border-radius: var(--radius); padding: 48px 40px; margin-bottom: 24px;
+  position: relative; overflow: hidden;
+}
+.cover-page::after {
+  content: ''; position: absolute; right: -60px; bottom: -60px; width: 260px; height: 260px;
+  border-radius: 50%; background: rgba(255,255,255,0.06);
+}
+.cover-page .eyebrow { font-size: 0.8rem; letter-spacing: 0.08em; opacity: 0.75; margin-bottom: 10px; }
+.cover-page h1 { font-size: 1.9rem; margin: 0 0 6px; font-weight: 800; }
+.cover-page .meta { font-size: 0.85rem; opacity: 0.85; margin-bottom: 26px; }
+.cover-page .legend-grid { display: flex; flex-wrap: wrap; gap: 14px; position: relative; z-index: 1; }
+.cover-page .legend-item {
+  display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 12px; padding: 10px 14px; min-width: 150px;
+}
+.cover-page .legend-item .icon-badge { background: rgba(255,255,255,0.18); }
+.cover-page .legend-item span.label { font-size: 0.82rem; font-weight: 600; }
+
 @media print {
   .app-header, .data-panel, .tabs, .no-print { display: none !important; }
   .tab-panel { display: block !important; page-break-after: always; }
-  body { background: #fff; }
-  .card { break-inside: avoid; border: 1px solid #999; }
+  .cover-page { page-break-after: always; margin-bottom: 0; }
+  body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .card { break-inside: avoid; border: 1px solid #d8d6cd; box-shadow: none; }
+  .chart-card-body, svg { break-inside: avoid; }
 }
 
 @media (max-width: 640px) {
