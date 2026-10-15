@@ -1,0 +1,122 @@
+{
+  "_meta": {
+    "source": "ディスカッションシート見本（2025年期）に掲載の集計値から復元した概算サンプル。勘定科目の内訳レベルまでは原本の決算書を参照できなかったため、流動資産/固定資産/流動負債/固定負債を単純化して1科目にまとめている。総資産・純資産・売上・利益率は見本の数値と一致（検算済み）。実運用では必ず実際の決算書の科目別内訳で入力し直すこと。",
+    "verified": "aggregate-only"
+  },
+  "companyName": "株式会社エムワイアセットパートナーズ",
+  "industryCategory": "その他",
+  "industryDetail": "不動産業、物品賃貸業 ＞ 不動産取引業",
+  "capitalAmount": 10000000,
+  "totalShares": 400,
+  "treasuryShares": 0,
+  "shareholders": [
+    { "name": "東四柳 明大", "shares": 250, "role": "代表取締役" },
+    { "name": "森 知樹", "shares": 150, "role": "" }
+  ],
+  "similarIndustry": {
+    "periodLabel": "業種目:不動産取引業（ユーザー入力が必要／国税庁公表データを都度入力）",
+    "A": null, "B": null, "C": null, "D": null,
+    "note": "国税庁『類似業種比準価額計算上の業種目及び業種目別株価等』より、評価したい時点の不動産取引業のA(株価)・B(配当)・C(利益)・D(純資産)を入力してください。"
+  },
+  "periods": [
+    {
+      "label": "2023年期",
+      "fiscalPeriodNo": 9,
+      "startDate": "2022-05-01",
+      "endDate": "2023-04-30",
+      "synthetic": false,
+      "bs": {
+        "cash": 51178000, "accountsReceivable": 0, "inventory": 0, "prepaidExpenses": 0,
+        "allowanceDoubtful": 0, "otherCurrentAssets": 0,
+        "tangibleFixedAssets": 0, "intangibleFixedAssets": 0, "investmentsOther": 47284000, "deferredAssets": 0,
+        "accountsPayable": 0, "shortTermLoans": 0, "currentPortionLongTermLoans": 0,
+        "accruedExpenses": 0, "accruedTaxes": 0, "depositsReceived": 0, "otherCurrentLiabilities": 10697000,
+        "longTermLoans": 71062000, "otherFixedLiabilities": 0,
+        "capitalStock": 10000000, "capitalSurplus": 0, "retainedEarnings": 6713000, "treasuryStock": 0
+      },
+      "pl": {
+        "netSales": 41063000, "costOfSales": 2965000, "sgaTotal": 32981000,
+        "sgaDetail": {
+          "otherInsurance": 280000, "officerCompensation": 10800000, "rent": 1695000,
+          "entertainment": 498000, "travel": 2134000, "statutoryWelfare": 519000, "welfare": 118000,
+          "other_未内訳": 17237000
+        },
+        "nonOperatingIncome": 20000, "nonOperatingExpenses": 965000,
+        "interestAndDividendIncome": 5000, "interestExpense": 965000,
+        "extraordinaryIncome": 0, "extraordinaryLoss": 0, "incomeTaxes": 0
+      },
+      "officerCompensationDetail": [ { "name": "東四柳 明大", "amount": 10800000 } ],
+      "loans": { "shortTerm": [], "longTerm": [ { "lender": "(内訳未確認)", "balance": 71062000, "rate": null, "guaranteeAmount": 0 } ] },
+      "officerBorrowings": [], "officerLendings": [],
+      "dividendsPaid": 0,
+      "fixedCostAnnualTotal": 15944000
+    },
+    {
+      "label": "2024年期",
+      "fiscalPeriodNo": 10,
+      "startDate": "2023-05-01",
+      "endDate": "2024-04-30",
+      "synthetic": false,
+      "bs": {
+        "cash": 51285000, "accountsReceivable": 0, "inventory": 0, "prepaidExpenses": 0,
+        "allowanceDoubtful": 0, "otherCurrentAssets": 0,
+        "tangibleFixedAssets": 0, "intangibleFixedAssets": 0, "investmentsOther": 11197000, "deferredAssets": 0,
+        "accountsPayable": 0, "shortTermLoans": 0, "currentPortionLongTermLoans": 0,
+        "accruedExpenses": 0, "accruedTaxes": 0, "depositsReceived": 0, "otherCurrentLiabilities": 12750000,
+        "longTermLoans": 34534000, "otherFixedLiabilities": 0,
+        "capitalStock": 10000000, "capitalSurplus": 0, "retainedEarnings": 5198000, "treasuryStock": 0
+      },
+      "pl": {
+        "netSales": 31734000, "costOfSales": 0, "sgaTotal": 34841000,
+        "sgaDetail": {
+          "otherInsurance": 413000, "officerCompensation": 10800000, "rent": 1783000,
+          "entertainment": 777000, "travel": 540000, "statutoryWelfare": 2198000, "welfare": 65000,
+          "other_未内訳": 18265000
+        },
+        "nonOperatingIncome": 11000, "nonOperatingExpenses": 963000,
+        "interestAndDividendIncome": 10000, "interestExpense": 963000,
+        "extraordinaryIncome": 0, "extraordinaryLoss": 0, "incomeTaxes": 0
+      },
+      "officerCompensationDetail": [ { "name": "東四柳 明大", "amount": 10800000 } ],
+      "loans": { "shortTerm": [], "longTerm": [ { "lender": "(内訳未確認)", "balance": 34534000, "rate": null, "guaranteeAmount": 0 } ] },
+      "officerBorrowings": [], "officerLendings": [],
+      "dividendsPaid": 0,
+      "fixedCostAnnualTotal": 16586000
+    },
+    {
+      "label": "2025年期",
+      "fiscalPeriodNo": 11,
+      "startDate": "2024-05-01",
+      "endDate": "2025-04-30",
+      "synthetic": false,
+      "bs": {
+        "cash": 34929000, "accountsReceivable": 0, "inventory": 0, "prepaidExpenses": 0,
+        "allowanceDoubtful": 0, "otherCurrentAssets": 0,
+        "tangibleFixedAssets": 0, "intangibleFixedAssets": 0, "investmentsOther": 16315000, "deferredAssets": 0,
+        "accountsPayable": 0, "shortTermLoans": 0, "currentPortionLongTermLoans": 0,
+        "accruedExpenses": 0, "accruedTaxes": 0, "depositsReceived": 0, "otherCurrentLiabilities": 12057000,
+        "longTermLoans": 32727000, "otherFixedLiabilities": 0,
+        "capitalStock": 10000000, "capitalSurplus": 0, "retainedEarnings": -3540000, "treasuryStock": 0
+      },
+      "pl": {
+        "netSales": 26088000, "costOfSales": 0, "sgaTotal": 35381000,
+        "sgaDetail": {
+          "otherInsurance": 389000, "officerCompensation": 6000000, "rent": 1709000,
+          "entertainment": 719000, "travel": 676000, "statutoryWelfare": 1690000, "welfare": 65000,
+          "other_未内訳": 24133000
+        },
+        "nonOperatingIncome": 50000, "nonOperatingExpenses": 362000,
+        "interestAndDividendIncome": 39000, "interestExpense": 362000,
+        "extraordinaryIncome": 0, "extraordinaryLoss": 0, "incomeTaxes": 0
+      },
+      "officerCompensationDetail": [ { "name": "東四柳 明大", "amount": 6000000 } ],
+      "loans": { "shortTerm": [], "longTerm": [ { "lender": "(内訳未確認)", "balance": 32727000, "rate": null, "guaranteeAmount": 0 } ] },
+      "officerBorrowings": [ { "name": "東四柳 明大", "amount": 0 } ], "officerLendings": [],
+      "dividendsPaid": 0,
+      "fixedCostAnnualTotal": 9973000
+    }
+  ],
+  "officers": [
+    { "name": "東四柳 明大", "role": "代表取締役", "age": null, "finalMonthlyCompensation": 500000, "tenureYears": 7 }
+  ]
+}

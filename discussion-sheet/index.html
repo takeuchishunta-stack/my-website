@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="社内限定の非公開ツール。決算書3期分（または2期分）から財務・キャッシュフロー・自社株評価・必要保障額・財務判定スコアリングを分析する。">
+<title>決算書ディスカッションシート分析ツール（社内用）</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div>
+    <h1 id="company-name-title">決算書ディスカッションシート分析ツール</h1>
+    <div class="sub">社内限定・非公開ツール / 決算書3期分（または2期分）から財務分析資料を作成</div>
+  </div>
+  <div class="header-actions no-print">
+    <button class="btn-ghost" id="export-excel">📊 Excelダウンロード</button>
+    <button class="btn-primary" id="export-pdf">🖨 PDF印刷/保存</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <section class="data-panel no-print">
+    <h2>① データ入力</h2>
+    <p style="font-size:0.85rem;color:#5b6878;">
+      Claude に決算書PDFを読み込ませ、<code>README.md</code> のプロンプトに沿って出力させたJSONをここに貼り付けてください。
+      まずは下のサンプルボタンで動作を確認できます。
+    </p>
+    <div class="row">
+      <button id="load-zou">サンプル：株式会社ZOU（実データ検証済）</button>
+      <button id="load-myap">サンプル：エムワイアセットパートナーズ（概算）</button>
+    </div>
+    <textarea id="json-input" placeholder="ここに決算書データのJSONを貼り付け"></textarea>
+    <div class="row">
+      <button class="btn-primary" id="apply-json">このデータで分析する</button>
+    </div>
+    <div id="load-error" style="color:#b3372c;font-size:0.8rem;margin-top:6px;"></div>
+  </section>
+
+  <div id="empty-state" class="notice">
+    まだデータが読み込まれていません。上の「① データ入力」でサンプルを読み込むか、JSONを貼り付けて「このデータで分析する」を押してください。
+  </div>
+
+  <div id="report-root" style="display:none;">
+    <nav class="tabs no-print">
+      <button class="tab-btn active" data-tab="tab-overview">まとめ</button>
+      <button class="tab-btn" data-tab="tab-financial">財務</button>
+      <button class="tab-btn" data-tab="tab-cashflow">キャッシュフロー</button>
+      <button class="tab-btn" data-tab="tab-stock">自社株</button>
+      <button class="tab-btn" data-tab="tab-coverage">必要保障</button>
+      <button class="tab-btn" data-tab="tab-scoring">スコアリング</button>
+      <button class="tab-btn" data-tab="tab-statements">決算情報</button>
+    </nav>
+
+    <div id="tab-overview" class="tab-panel active"></div>
+    <div id="tab-financial" class="tab-panel"></div>
+    <div id="tab-cashflow" class="tab-panel"></div>
+    <div id="tab-stock" class="tab-panel"></div>
+    <div id="tab-coverage" class="tab-panel"></div>
+    <div id="tab-scoring" class="tab-panel"></div>
+    <div id="tab-statements" class="tab-panel"></div>
+  </div>
+
+</div>
+
+<footer class="app-footer">
+  本ツールは社内の財務分析作業を補助するための参考資料作成ツールです。自社株評価・必要保障額・スコアリングの各試算は、一般的な評価方法や標準的な考え方に基づく概算であり、実際の税務申告・保険提案には、必ず顧問税理士・原本資料との照合を行ってください。
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="calc.js"></script>
+<script src="stock-valuation.js"></script>
+<script src="scoring.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
