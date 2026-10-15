@@ -50,6 +50,23 @@ const DiscussionEngine = (() => {
     return { sgaTotal, grossProfit, operatingIncome, ordinaryIncome, incomeBeforeTax, netIncome, depreciation };
   }
 
+  // ---- 固定費集計 -------------------------------------------------------------
+  // pl.sgaFixedAccounts に「固定費」に該当する sgaDetail のキー名を列挙しておくと、
+  // その科目だけを合計して固定費年額とする（必要保障額の①運転資金＝月額固定費×ヶ月数、
+  // 等の算出に使用）。未指定の場合は旧来通り period.fixedCostAnnualTotal の手入力値
+  // （無ければ販管費合計）にフォールバックする。
+  function fixedCostSummary(pl) {
+    const accounts = pl.sgaFixedAccounts;
+    if (!accounts || !accounts.length) return { total: null, breakdown: null };
+    const detail = pl.sgaDetail || {};
+    const breakdown = accounts
+      .map(k => [k, detail[k] || 0])
+      .filter(([, v]) => v)
+      .sort((a, b) => b[1] - a[1]);
+    const total = sum(...breakdown.map(([, v]) => v));
+    return { total, breakdown };
+  }
+
   // ---- 借入金集計 -----------------------------------------------------------
   function loanSummary(period) {
     const shortTerm = (period.loans && period.loans.shortTerm) || [];
@@ -70,7 +87,12 @@ const DiscussionEngine = (() => {
     const bs = bsSummary(period.bs);
     const pl = plSummary(period.pl);
     const loans = loanSummary(period);
-    return { ...period, bsSum: bs, plSum: pl, loanSum: loans };
+    const fixedCost = fixedCostSummary(period.pl);
+    return {
+      ...period, bsSum: bs, plSum: pl, loanSum: loans,
+      fixedCostAnnualTotal: fixedCost.total != null ? fixedCost.total : period.fixedCostAnnualTotal,
+      fixedCostBreakdown: fixedCost.breakdown, // [[科目名, 金額], ...] 金額降順。sgaFixedAccounts未指定ならnull
+    };
   }
 
   // ---- 財務比率（単期で求まるもの） --------------------------------------------
@@ -186,7 +208,7 @@ const DiscussionEngine = (() => {
 
   return {
     sum, div, pct, round0,
-    bsSummary, plSummary, loanSummary, analyzePeriod,
+    bsSummary, plSummary, loanSummary, fixedCostSummary, analyzePeriod,
     ratiosForPeriod, yoyGrowth, cashFlowStatement, buildThreePeriodView,
   };
 })();

@@ -237,7 +237,7 @@ function renderFinancial() {
 
   const html = `<div class="sheet">
     ${sheetHead('financial', '--sec-financial', '財務の観点', 1)}
-    <div class="sheet-sub">資金調達手段の偏りが経営の安定化のカギ。固定費の見直しと財務の現状把握を行います（直近期：${latest.label}）。</div>
+    <div class="sheet-sub">自己資本比率や借入金の返済負担など、財務の安全性と資金調達の余力を確認します（直近期：${latest.label}）。</div>
     <div class="grid-2">
       ${panel('自己資本比率・安全性指標の推移', safetyBody)}
       ${panel('借入金・返済年数の推移', debtBody)}
@@ -257,13 +257,13 @@ function renderCashFlow() {
   const labels = periods.map(p => p.label);
   const hasCf = periods.some(p => p.cf);
 
-  const salesBody = `<div class="chart-card-body">${Viz.columnChart(labels, periods.map(p => p.pl.netSales), { color: Viz.PALETTE.series[0], height: 58 })}</div>
+  const salesBody = `<div class="chart-card-body">${Viz.columnChart(labels, periods.map(p => p.pl.netSales), { color: Viz.PALETTE.series[0], height: 250 })}</div>
     ${latest.yoy ? formulaLine(`対前年伸び率 ＝ (当期売上－前期売上) ÷ 前期売上 ＝ <b>${fmtPct(latest.yoy.salesGrowth)}</b>`) : ''}`;
 
   const marginBody = `<div class="chart-card-body">${Viz.lineChart(labels, [
     { name: '営業利益率', values: periods.map(p => p.ratios.operatingMargin) },
     { name: '経常利益率', values: periods.map(p => p.ratios.ordinaryMargin) },
-  ], { unit: '%', height: 54 })}</div>
+  ], { unit: '%', height: 70 })}</div>
     <table class="dsheet compact"><thead>${periodHeaderRow(periods)}</thead><tbody>
     ${dataRow('対前年伸び率[%]', periods.map(p => p.yoy && p.yoy.salesGrowth), { fmtFn: fmtPct })}
     ${dataRow('粗利率[%]', periods.map(p => p.ratios.grossMargin), { fmtFn: fmtPct })}
@@ -271,31 +271,23 @@ function renderCashFlow() {
     ${dataRow('経常利益率[%]', periods.map(p => p.ratios.ordinaryMargin), { fmtFn: fmtPct })}
     </tbody></table>`;
 
-  const cfBody = `${hasCf ? `<div class="chart-card-body">${Viz.groupedBarChart(labels, [
-      { name: '営業CF', values: periods.map(p => p.cf && p.cf.operatingCF) },
-      { name: '投資CF', values: periods.map(p => p.cf && p.cf.investingCF) },
-      { name: '財務CF', values: periods.map(p => p.cf && p.cf.financingCF) },
-    ], { height: 48 })}</div>` : ''}
-    ${latest.cf ? formulaLine(`営業CF ＝ 税引前当期純利益＋減価償却費±運転資本増減－法人税等 ＝ <b>${fmt(latest.cf.operatingCF)}</b>　／　フリーCF(①+②) ＝ <b>${fmt(latest.cf.freeCashFlow)}</b>`) : ''}
-    <table class="dsheet compact"><thead>${periodHeaderRow(periods)}</thead><tbody>
-    ${dataRow('①営業キャッシュフロー', periods.map(p => p.cf && p.cf.operatingCF))}
-    ${dataRow('②投資キャッシュフロー', periods.map(p => p.cf && p.cf.investingCF))}
-    ${dataRow('③フリーCF(①+②)', periods.map(p => p.cf && p.cf.freeCashFlow), { total: true })}
-    ${dataRow('④財務キャッシュフロー', periods.map(p => p.cf && p.cf.financingCF))}
-    ${dataRow('⑤CF計(③+④)', periods.map(p => p.cf && p.cf.netChange))}
-    </tbody></table>
-    <div class="caption">最も古い期間は前期の貸借対照表が無いため算出できません（「ー」表示）。</div>`;
+  // 今年度のキャッシュフロー構成（単期間・カテゴリ別の棒グラフ）。
+  // 複数期間の推移ではなく、直近期の内訳を一目で読み取れる形で示す。
+  const cfNowBody = latest.cf ? `
+    <div class="chart-card-body">${Viz.groupedBarChart(
+      ['①営業CF', '②投資CF', '③フリーCF(①+②)', '④財務CF', '⑤CF計(③+④)'],
+      [{ name: '金額', values: [latest.cf.operatingCF, latest.cf.investingCF, latest.cf.freeCashFlow, latest.cf.financingCF, latest.cf.netChange] }],
+      { height: 150, showValues: true, colorBySign: true }
+    )}</div>
+    ${formulaLine(`営業CF ＝ 税引前当期純利益＋減価償却費±運転資本増減－法人税等 ＝ <b>${fmt(latest.cf.operatingCF)}</b>　／　フリーCF(①+②) ＝ <b>${fmt(latest.cf.freeCashFlow)}</b>`)}
+    <div class="caption">直近期（${latest.label}）のキャッシュフロー構成。緑＝資金の増加、赤＝資金の減少。</div>`
+    : `<div class="caption">最も古い期間は前期の貸借対照表が無いため、キャッシュフローを算出できません。</div>`;
 
   const officerList = latest.officerCompensationDetail || [];
   const hasOfficerDetail = officerList.length > 0;
   const officerBody = `<table class="dsheet compact"><thead><tr><th>役員名</th><th>報酬額</th></tr></thead><tbody>
       ${officerList.map(o => `<tr><td>${o.name}</td><td>${fmt(o.amount)}</td></tr>`).join('')}
       </tbody></table>`;
-  // 役員報酬の個別データが無い場合、空のパネルを並べると印刷時に行の高さが
-  // 噛み合わず不自然な余白が出るため、固定費パネルを単独で全幅表示にする。
-  const bottomRow = hasOfficerDetail
-    ? `${panel('役員報酬（直近期）', officerBody)}${panel('固定費の内訳（直近期・上位10件）', renderSgaTable(latest))}`
-    : panel('固定費の内訳（直近期・上位10件）', renderSgaTable(latest), { span2: true });
 
   const html = `<div class="sheet">
     ${sheetHead('cashflow', '--sec-cashflow', 'キャッシュフローの観点', 2)}
@@ -303,18 +295,23 @@ function renderCashFlow() {
     <div class="grid-2">
       ${panel('売上高の推移', salesBody)}
       ${panel('利益率の推移', marginBody)}
-      ${panel('キャッシュフローの推移', cfBody, { span2: true })}
-      ${bottomRow}
+      ${panel('今年度のキャッシュフロー', cfNowBody)}
+      ${panel('固定費の内訳（直近期）', renderSgaTable(latest))}
+      ${hasOfficerDetail ? panel('役員報酬（直近期）', officerBody, { span2: true }) : ''}
     </div>
     ${takeaway('流出金額の見直しなど、利益確保を意識した費用のコントロールにより、キャッシュフローの最適化を図れます。')}
   </div>`;
   document.getElementById('tab-cashflow').innerHTML = html;
 }
 
+// 固定費の内訳：pl.sgaFixedAccounts で「固」区分の科目が指定されていれば、その科目だけを
+// 金額の大きい順に表示する（必要保障額の①運転資金＝月額固定費×ヶ月数の算出対象と一致させる）。
+// 指定が無い場合は、販管費全体の上位科目を参考表示する（旧データとの後方互換）。
 function renderSgaTable(period) {
-  const detail = period.pl.sgaDetail || {};
-  const entries = Object.entries(detail).filter(([, v]) => v).sort((a, b) => b[1] - a[1]);
-  const TOP_N = 5;
+  const tagged = period.fixedCostBreakdown; // [[科目名, 金額], ...] 金額降順 or null
+  const isTagged = !!tagged;
+  const entries = tagged || Object.entries(period.pl.sgaDetail || {}).filter(([, v]) => v).sort((a, b) => b[1] - a[1]);
+  const TOP_N = 8;
   const top = entries.slice(0, TOP_N);
   const restTotal = entries.slice(TOP_N).reduce((a, [, v]) => a + v, 0);
   const restCount = entries.length - top.length;
@@ -328,8 +325,12 @@ function renderSgaTable(period) {
       <div style="width:88px;text-align:right;font-size:0.72rem;flex:none;">${fmt(v)}</div>
     </div>`).join('');
 
+  const totalLabel = isTagged
+    ? `固定費合計：${fmt(DiscussionEngine.sum(...entries.map(([, v]) => v)))}円（必要保障額「①運転資金」の算出対象）。全科目の内訳はExcel出力に収録。`
+    : `販管費合計：${fmt(period.plSum.sgaTotal)}円。固定費／変動費の区分が未入力のため全科目を参考表示しています。全科目の内訳はExcel出力に収録。`;
+
   return `<div class="chart-card-body" style="margin-bottom:6px;">${bars}</div>
-    <div class="caption">販管費合計：${fmt(period.plSum.sgaTotal)}円。全科目の内訳はExcel出力に収録。</div>`;
+    <div class="caption">${totalLabel}</div>`;
 }
 
 // ---- 3. 自社株の観点 ---------------------------------------------------------
@@ -419,12 +420,11 @@ function renderCoverage() {
     ['　内、連帯保証債務（短期）[参考]', c.shortTermGuarantee, '短期の連帯保証額合計'],
     ['③負債等の返済資金（長期）', c.longTermDebtRepayment, '長期借入金残高'],
     ['　内、連帯保証債務（長期）[参考]', c.longTermGuarantee, '長期の連帯保証額合計'],
-    ['④就業不能時の運転資金[参考]', c.disabilityCapital, `月額固定費 × ${c.assumptions.disabilityMonths}ヶ月`],
-    ['⑤役員死亡退職金[参考]', c.deathRetirement, `最終報酬月額 × 在任年数 × 功績倍率${c.assumptions.deathRetirementMultiple}`],
+    ['④役員死亡退職金[参考]', c.deathRetirement, `最終報酬月額 × 在任年数 × 功績倍率${c.assumptions.deathRetirementMultiple}`],
     ['　役員勇退退職金[参考]', c.resignationRetirement, `最終報酬月額 × 在任年数 × 功績倍率${c.assumptions.resignationRetirementMultiple}`],
-    ['⑥事業承継対策資金（自社株買取資金）', c.stockBuyback, '自社株評価額（法人税評価） × 同族保有株数'],
-    ['準備済み資産（既加入の保険等）', -c.preparedAssets, '現在加入している生命保険の解約返戻金相当額等'],
+    ['⑤事業承継対策資金（自社株買取資金）', c.stockBuyback, '自社株評価額（法人税評価） × 同族保有株数'],
   ];
+  const taxRatePct = (c.assumptions.effectiveTaxRate * 100).toFixed(2);
 
   const tryBody = `<div class="chart-card-body">${Viz.stackedBarRow('必要保障額 合計 ' + stripHtml(fmtYen(c.total)), [
       { name: `準備済み資産 ${stripHtml(fmtYen(covered))}`, value: covered, color: Viz.PALETTE.good },
@@ -434,22 +434,24 @@ function renderCoverage() {
 
   const tableBody = `<table class="dsheet compact"><thead><tr><th>項目</th><th>金額</th><th>試算根拠</th></tr></thead><tbody>
     ${rows.map(([l, v, basis]) => `<tr><td>${l}</td><td class="${cls(v)}">${fmt(v)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">${basis}</td></tr>`).join('')}
-    <tr class="total"><td>必要保障額 合計</td><td>${fmt(c.total)}</td><td></td></tr>
+    <tr class="total"><td>小計（手取りベース）</td><td>${fmt(c.totalBeforeTax)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">①〜⑤の合計（[参考]科目を除く）</td></tr>
+    <tr class="total"><td>必要保障額 合計（保険金ベース）</td><td>${fmt(c.total)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">小計 ÷ (1－実効税率${taxRatePct}%)</td></tr>
+    <tr><td>準備済み資産（既加入の保険等）</td><td class="${cls(-c.preparedAssets)}">${fmt(-c.preparedAssets)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">現在加入している生命保険の解約返戻金相当額等</td></tr>
     <tr class="total"><td>不足金額</td><td>${fmt(c.shortfall)}</td><td></td></tr>
-    </tbody></table>`;
+    </tbody></table>
+    ${formulaLine(`必要保障額 合計 ＝ 小計（手取りベース） ÷ (1－実効税率) ＝ <b>${fmt(c.totalBeforeTax)}</b> ÷ (1－${taxRatePct}%) ＝ <b>${fmt(c.total)}</b>（保険金の受取時には益金算入され法人税等が課されるため、手取り必要額を保険金ベースに割り戻しています）`)}`;
 
   const purposeBody = `<table class="dsheet compact"><thead><tr><th>区分</th><th>資金準備の目的</th></tr></thead><tbody>
     <tr><td>会社経営</td><td style="text-align:left;">運転資金 / 負債等の返済資金・移転資金 / 自社株買取資金</td></tr>
-    <tr><td>役員・従業員</td><td style="text-align:left;">死亡退職金・弔慰金 / 勇退退職金・見舞金 / 就業不能時の補填</td></tr>
+    <tr><td>役員・従業員</td><td style="text-align:left;">死亡退職金・弔慰金 / 勇退退職金・見舞金</td></tr>
     <tr><td>社長個人</td><td style="text-align:left;">ご遺族の生活資金 / 老後の資産形成 / 医療・介護資金</td></tr>
     </tbody></table>`;
 
   const breakdownItems = [
     ['①運転資金', c.workingCapital],
     ['②③負債等の返済資金', c.shortTermDebtRepayment + c.longTermDebtRepayment],
-    ['④就業不能時の運転資金', c.disabilityCapital],
-    ['⑤退職金・弔慰金', c.deathRetirement + c.resignationRetirement],
-    ['⑥自社株買取資金', c.stockBuyback],
+    ['④退職金・弔慰金', c.deathRetirement + c.resignationRetirement],
+    ['⑤自社株買取資金', c.stockBuyback],
   ].filter(([, v]) => v);
   const maxBreakdown = Math.max(...breakdownItems.map(([, v]) => v), 1);
   const breakdownBody = `<div class="chart-card-body">${breakdownItems.map(([k, v]) => `
@@ -617,18 +619,32 @@ function renderStatements() {
 function renderScoring() {
   const s = STATE.scoring;
   const byCategory = {};
-  Object.values(s.results).forEach(r => {
+  Object.entries(s.results).forEach(([key, r]) => {
     byCategory[r.category] = byCategory[r.category] || [];
-    byCategory[r.category].push(r);
+    byCategory[r.category].push({ ...r, key });
   });
   const catLabel = { safety: '1. 安全性項目', profitability: '2. 収益性項目', growth: '3. 成長性項目', repayment: '4. 返済力' };
+
+  // 次の得点バンドまでの距離を「あと何%／何年で＋何点」という形で表示する。
+  // 単位は指標ラベル末尾の [%]・[年]・[倍]・[円] 表記から判定する。
+  const nextBandText = (i) => {
+    if (i.points >= i.maxPoints) return '満点';
+    const nt = Scoring.nextThreshold(i.key, i.value);
+    if (!nt) return 'ー';
+    const unitMatch = i.label.match(/\[(.+?)\]/);
+    const unit = unitMatch ? unitMatch[1] : '';
+    const fmtVal = (v) => unit === '円' ? fmt(v) : v.toLocaleString('ja-JP', { maximumFractionDigits: 2 });
+    const cmp = nt.direction === 'higher' ? '以上' : '以下';
+    return `${fmtVal(nt.nextMin)}${unit === '円' ? '円' : unit}${cmp}で${nt.nextPoints}点（あと${fmtVal(nt.diff)}${unit === '円' ? '円' : unit}）`;
+  };
+
   const catPanels = Object.entries(catLabel).map(([key, label]) => {
     const items = byCategory[key] || [];
     const catTotal = items.reduce((a, i) => a + i.points, 0);
     const catMax = items.reduce((a, i) => a + i.maxPoints, 0);
     const body = `<div class="chart-card-body" style="margin-bottom:6px;">${Viz.meter(catTotal, catMax, { width: 300, height: 12, color: Viz.PALETTE.series[0] })}</div>
-      <table class="dsheet compact"><thead><tr><th>指標</th><th>数値</th><th>点数</th></tr></thead><tbody>
-      ${items.map(i => `<tr><td>${i.label}</td><td>${i.value === null ? 'ー' : i.value.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}</td><td>${i.points}/${i.maxPoints}</td></tr>`).join('')}
+      <table class="dsheet compact"><thead><tr><th>指標</th><th>数値</th><th>点数</th><th>次の基準（加点条件）</th></tr></thead><tbody>
+      ${items.map(i => `<tr><td>${i.label}</td><td>${i.value === null ? 'ー' : i.value.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}</td><td>${i.points}/${i.maxPoints}</td><td style="text-align:left;font-size:0.68rem;color:var(--ink-secondary);">${nextBandText(i)}</td></tr>`).join('')}
       </tbody></table>`;
     return panel(`${label}（${catTotal}/${catMax}点）`, body);
   }).join('');
@@ -699,7 +715,8 @@ function exportExcel() {
     ['項目', '金額'],
     ['運転資金', c.workingCapital], ['短期返済資金', c.shortTermDebtRepayment],
     ['長期返済資金', c.longTermDebtRepayment], ['自社株買取資金', c.stockBuyback],
-    ['必要保障額合計', c.total], ['準備済み資産', c.preparedAssets], ['不足金額', c.shortfall],
+    ['小計（手取りベース）', c.totalBeforeTax], ['実効税率', c.assumptions.effectiveTaxRate],
+    ['必要保障額合計（保険金ベース）', c.total], ['準備済み資産', c.preparedAssets], ['不足金額', c.shortfall],
   ]);
   const s = STATE.scoring;
   addSheet('スコアリング', [

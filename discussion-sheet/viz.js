@@ -25,7 +25,9 @@ const Viz = (() => {
   };
 
   function svgWrap(width, height, inner, viewBoxW, viewBoxH) {
-    return `<svg viewBox="0 0 ${viewBoxW || width} ${viewBoxH || height}" width="100%" style="max-width:${width}px; display:block;" role="img">${inner}</svg>`;
+    // 親パネルがチャート幅より広い場合（横組みのフル幅パネル等）に左寄りで浮いて
+    // 見えないよう、常に中央寄せにする。
+    return `<svg viewBox="0 0 ${viewBoxW || width} ${viewBoxH || height}" width="100%" style="max-width:${width}px; display:block; margin:0 auto;" role="img">${inner}</svg>`;
   }
 
   // ---- 棒グラフ（単系列・縦）: 売上高などの推移 --------------------------------
@@ -52,9 +54,13 @@ const Viz = (() => {
   }
 
   // ---- グループ化棒グラフ（最大3系列）: キャッシュフローの推移など -----------------
-  function groupedBarChart(labels, series, { width = 500, height = 140, unit = '' } = {}) {
+  // showValues: 各バーの上（マイナスは下）に実数値を直接表示する（単期間のCF構成など、
+  //   カテゴリ数が少なく値を読み取らせたい場面向け）。
+  // colorBySign: 系列色の代わりに、値の符号でプラス＝good／マイナス＝critical に塗り分ける
+  //   （単一系列で「資金が増えたか減ったか」を直感的に示したい場面向け。凡例は省略する）。
+  function groupedBarChart(labels, series, { width = 500, height = 140, unit = '', showValues = false, colorBySign = false } = {}) {
     // series: [{name, values:[...]}, ...] 最大3系列
-    const padL = 56, padR = 56, padT = 16, padB = 26;
+    const padL = 56, padR = 56, padT = showValues ? 26 : 16, padB = showValues ? 36 : 26;
     const plotW = width - padL - padR, plotH = height - padT - padB;
     const n = labels.length;
     const sN = series.length;
@@ -74,20 +80,25 @@ const Viz = (() => {
         const x = groupX0 + si * (barW + 4);
         const h = v == null ? 0 : Math.abs(v) * scale;
         const y = v == null ? zeroY : (v >= 0 ? zeroY - h : zeroY);
-        bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, h).toFixed(1)}" rx="3" ry="3" fill="${PALETTE.series[si]}"/>`;
+        const color = colorBySign ? (v == null || v >= 0 ? PALETTE.good : PALETTE.critical) : PALETTE.series[si];
+        bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, h).toFixed(1)}" rx="3" ry="3" fill="${color}"/>`;
+        if (showValues && v != null) {
+          const ty = v >= 0 ? (y - 6) : (y + h + 13);
+          bars += `<text x="${(x + barW / 2).toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" font-size="11" font-weight="600" fill="${PALETTE.ink}">${v < 0 ? '▲' : ''}${compact(Math.abs(v))}${unit}</text>`;
+        }
       });
       bars += `<text x="${(groupX0 + groupW / 2).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="middle" font-size="11" fill="${PALETTE.inkSecondary}">${esc(label)}</text>`;
     });
     const zeroLine = `<line x1="${padL}" y1="${zeroY}" x2="${width - padR}" y2="${zeroY}" stroke="${PALETTE.baseline}" stroke-width="1"/>`;
 
-    const legend = series.map((s, i) => `
+    const legend = (series.length > 1 && !colorBySign) ? series.map((s, i) => `
       <span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;">
         <span style="width:10px;height:10px;border-radius:2px;background:${PALETTE.series[i]};display:inline-block;"></span>
         <span style="font-size:12px;color:${PALETTE.inkSecondary};">${esc(s.name)}</span>
-      </span>`).join('');
+      </span>`).join('') : '';
 
-    return `<div>${svgWrap(width, height, zeroLine + bars)}
-      <div style="margin-top:4px;">${legend}</div></div>`;
+    return `<div style="text-align:center;">${svgWrap(width, height, zeroLine + bars)}
+      ${legend ? `<div style="margin-top:4px;">${legend}</div>` : ''}</div>`;
   }
 
   // ---- 折れ線グラフ（最大2系列・%推移向け） -----------------------------------

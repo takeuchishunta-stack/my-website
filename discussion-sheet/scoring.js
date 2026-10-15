@@ -78,6 +78,23 @@ const Scoring = (() => {
     return { points: 0, def };
   }
 
+  // 次の得点バンドに到達するために必要な数値（あといくつで+何点、を出すための補助）。
+  // bands は points 降順（＝達成しやすさの厳しい順）に並んでいるため、現在マッチした
+  // バンドの1つ手前（配列上はインデックスが1小さい方）がちょうど1段階上のバンド。
+  function nextThreshold(key, value) {
+    const def = INDICATORS[key];
+    if (value === null || value === undefined || Number.isNaN(value)) return null;
+    let matchedIdx = -1;
+    for (let i = 0; i < def.bands.length; i++) {
+      const [min] = def.bands[i];
+      if (def.direction === 'higher' ? value >= min : value <= min) { matchedIdx = i; break; }
+    }
+    if (matchedIdx <= 0) return null; // 既に最高バンド、または該当なし
+    const [nextMin, nextPoints] = def.bands[matchedIdx - 1];
+    const diff = def.direction === 'higher' ? (nextMin - value) : (value - nextMin);
+    return { nextMin, nextPoints, diff: Math.abs(diff), direction: def.direction };
+  }
+
   // metrics: { selfCapitalRatio, gearingRatio, fixedLongTermConformityRatio, currentRatio,
   //            ordinaryMargin, roa, cashFlowScore, ordinaryIncomeGrowth,
   //            debtServiceYears, interestCoverageRatio, cashFlowAmount }
@@ -100,10 +117,11 @@ const Scoring = (() => {
   // ソニー生命の内部係数そのものではない（見本からの完全な数式復元はできていない）。
   const COVERAGE_DEFAULTS = {
     workingCapitalMonths: 6,       // ①運転資金の必要月数
-    disabilityMonths: 36,          // ⑥就業不能時の必要月数
+    disabilityMonths: 36,          // 就業不能時の必要月数（参考値として算出のみ行い、本紙には表示しない）
     deathRetirementMultiple: 3.0,  // ⑦死亡退職金の功績倍率
     resignationRetirementMultiple: 2.0, // 勇退退職金の功績倍率
-    effectiveTaxRateForRetirement: 0.3358, // 実効税率（退職金の実質負担試算用）
+    effectiveTaxRate: 0.3358,      // 実効税率：保険金受取時の益金算入等を見込み、必要保障額を手取りベースから
+                                   // 保険金額（グロス）ベースに割り戻すために使用する
     buybackRatio: 1.0,             // ⑨自社株買取資金＝自社株評価額の何%を想定するか
   };
 
@@ -126,18 +144,23 @@ const Scoring = (() => {
 
     const stockBuyback = (stockValuationPerShare || 0) * (sharesHeldByFamily || 0) * a.buybackRatio;
 
-    const total = sum(workingCapital, shortTermDebtRepayment, longTermDebtRepayment, stockBuyback);
+    // 手取りベースでの必要資金合計。保険金として受け取る際は法人税等が課されるため、
+    // 実効税率で割り戻し（グロスアップ）して、実際に備えるべき保険金額ベースの
+    // 必要保障額を算出する（総額 ＝ 手取りベース ÷ (1－実効税率)）。
+    const totalBeforeTax = sum(workingCapital, shortTermDebtRepayment, longTermDebtRepayment, stockBuyback);
+    const taxGrossUpFactor = 1 / (1 - a.effectiveTaxRate);
+    const total = totalBeforeTax * taxGrossUpFactor;
     const shortfall = Math.max(0, total - (preparedAssets || 0));
 
     return {
       workingCapital, shortTermDebtRepayment, shortTermGuarantee, longTermDebtRepayment, longTermGuarantee,
       disabilityCapital, deathRetirement, resignationRetirement, stockBuyback,
-      preparedAssets: preparedAssets || 0, total, shortfall, assumptions: a,
+      preparedAssets: preparedAssets || 0, totalBeforeTax, taxGrossUpFactor, total, shortfall, assumptions: a,
     };
   }
   function sum(...vals) { return vals.reduce((a, b) => a + (Number(b) || 0), 0); }
 
-  return { INDICATORS, GRADE_BANDS, CATEGORY_WEIGHTS, scoreIndicator, scoreAll, COVERAGE_DEFAULTS, necessaryCoverage };
+  return { INDICATORS, GRADE_BANDS, CATEGORY_WEIGHTS, scoreIndicator, nextThreshold, scoreAll, COVERAGE_DEFAULTS, necessaryCoverage };
 })();
 
 if (typeof module !== 'undefined') module.exports = Scoring;
