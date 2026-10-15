@@ -2,7 +2,7 @@
 # ATHLETE BRIDGE 公開スクリプト。
 #   使い方: ./scripts/publish.sh "変更内容のメモ"
 # 検証 → コミット → GitHub に push まで一括で行う。
-# push が完了すると Netlify が自動でデプロイする。
+# push が完了すると Vercel が自動でデプロイする。
 
 set -euo pipefail
 
@@ -34,7 +34,7 @@ delay=2
 for attempt in 1 2 3 4 5; do
   if git push -u origin "$BRANCH"; then
     echo
-    echo "✓ push 完了。Netlify のデプロイが自動で始まります。"
+    echo "✓ push 完了。Vercel のデプロイが自動で始まります。"
     exit 0
   fi
   if [ "$attempt" -lt 5 ]; then

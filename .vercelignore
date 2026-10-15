@@ -1,0 +1,6 @@
+# Netlifyでは /note-kit/* と /scripts/* を404へリダイレクトして隠していたが、
+# Vercelではデプロイ対象から除外することで同様にURLから到達できないようにする。
+# （note-kit は記事執筆用の内部ツール、scripts はローカル検証/公開用で、
+#   どちらもサイトの表示には関与しない）
+note-kit
+scripts
