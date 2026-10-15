@@ -61,7 +61,12 @@ function applyData(data) {
   const prevForGrowth = STATE.view.periods[STATE.view.periods.length - 2];
 
   // 自社株評価（直近期ベース）
-  try {
+  // 医療法人の出資持分など、本ツールの評価方式が適用できないエンティティは
+  // データ側で skipStockValuation:true を指定することでスキップできる。
+  STATE.stockEval = null;
+  if (data.skipStockValuation) {
+    STATE.stockEvalSkipReason = data.skipStockValuationReason || 'このエンティティ種別には現在の自社株評価ロジックは対応していません。';
+  } else try {
     STATE.stockEval = StockValuation.evaluate({
       industryCategory: data.industryCategory || 'その他',
       totalAssetsBookValue: latest.bsSum.totalAssets,
@@ -215,7 +220,11 @@ function renderSgaTable(period) {
 function renderStock() {
   const sv = STATE.stockEval;
   const data = STATE.raw;
-  if (!sv) { document.getElementById('tab-stock').innerHTML = '<div class="notice">自社株評価の算出に失敗しました。入力データ（資本金・発行株式数・業種等）を確認してください。</div>'; return; }
+  if (!sv) {
+    const reason = STATE.stockEvalSkipReason || '自社株評価の算出に失敗しました。入力データ（資本金・発行株式数・業種等）を確認してください。';
+    document.getElementById('tab-stock').innerHTML = `<div class="notice">⚠ ${reason}</div>`;
+    return;
+  }
   const si = data.similarIndustry || {};
   const needsSimilarInput = si.A == null;
   let html = `
@@ -407,6 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   document.getElementById('load-zou').addEventListener('click', () => loadSample('zou'));
   document.getElementById('load-myap').addEventListener('click', () => loadSample('myap'));
+  document.getElementById('load-yotsuba').addEventListener('click', () => loadSample('yotsuba'));
   document.getElementById('apply-json').addEventListener('click', applyFromTextarea);
   document.getElementById('export-pdf').addEventListener('click', () => window.print());
   document.getElementById('export-excel').addEventListener('click', exportExcel);
