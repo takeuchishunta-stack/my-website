@@ -432,14 +432,17 @@ function renderCoverage() {
     ], { width: 520, barHeight: 26 })}</div>
     ${formulaLine(`不足金額 ＝ 必要保障額合計 － 準備済み資産 ＝ <b>${fmt(c.total)}</b> － <b>${fmt(c.preparedAssets)}</b> ＝ <b>${fmt(c.shortfall)}</b>`)}`;
 
+  const grossedUpTarget = c.grossUpTargetTotal * c.taxGrossUpFactor;
   const tableBody = `<table class="dsheet compact"><thead><tr><th>項目</th><th>金額</th><th>試算根拠</th></tr></thead><tbody>
     ${rows.map(([l, v, basis]) => `<tr><td>${l}</td><td class="${cls(v)}">${fmt(v)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">${basis}</td></tr>`).join('')}
-    <tr class="total"><td>小計（手取りベース）</td><td>${fmt(c.totalBeforeTax)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">①〜⑤の合計（[参考]科目を除く）</td></tr>
-    <tr class="total"><td>必要保障額 合計（保険金ベース）</td><td>${fmt(c.total)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">小計 ÷ (1－実効税率${taxRatePct}%)</td></tr>
+    <tr class="total"><td>①運転資金（グロスアップ不要）</td><td>${fmt(c.noGrossUpTotal)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">固定費はその年の損金に算入されるため実効税率の調整は不要</td></tr>
+    <tr class="total"><td>②③⑤ 小計（借入返済＋自社株買取・実額）</td><td>${fmt(c.grossUpTargetTotal)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">②＋③＋⑤（[参考]科目を除く）</td></tr>
+    <tr class="total"><td>②③⑤ グロスアップ後（保険金ベース）</td><td>${fmt(grossedUpTarget)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">小計 ÷ (1－実効税率${taxRatePct}%)</td></tr>
+    <tr class="total"><td>必要保障額 合計</td><td>${fmt(c.total)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">①＋②③⑤グロスアップ後</td></tr>
     <tr><td>準備済み資産（既加入の保険等）</td><td class="${cls(-c.preparedAssets)}">${fmt(-c.preparedAssets)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">現在加入している生命保険の解約返戻金相当額等</td></tr>
     <tr class="total"><td>不足金額</td><td>${fmt(c.shortfall)}</td><td></td></tr>
     </tbody></table>
-    ${formulaLine(`必要保障額 合計 ＝ 小計（手取りベース） ÷ (1－実効税率) ＝ <b>${fmt(c.totalBeforeTax)}</b> ÷ (1－${taxRatePct}%) ＝ <b>${fmt(c.total)}</b>（保険金の受取時には益金算入され法人税等が課されるため、手取り必要額を保険金ベースに割り戻しています）`)}`;
+    ${formulaLine(`必要保障額 合計 ＝ ①運転資金 ＋ (②③負債等の返済資金＋⑤自社株買取資金) ÷ (1－実効税率) ＝ <b>${fmt(c.noGrossUpTotal)}</b> ＋ <b>${fmt(c.grossUpTargetTotal)}</b> ÷ (1－${taxRatePct}%) ＝ <b>${fmt(c.total)}</b>（借入金の返済・自社株買取は保険金の受取時に益金算入され法人税等が課されるため保険金ベースに割り戻す一方、①運転資金＝固定費はその年の損金に算入されるためグロスアップしません）`)}`;
 
   const purposeBody = `<table class="dsheet compact"><thead><tr><th>区分</th><th>資金準備の目的</th></tr></thead><tbody>
     <tr><td>会社経営</td><td style="text-align:left;">運転資金 / 負債等の返済資金・移転資金 / 自社株買取資金</td></tr>
@@ -615,6 +618,22 @@ function renderStatements() {
   document.getElementById('tab-statements').innerHTML = html;
 }
 
+// スコアリング指標の説明：専門用語に不慣れなお客様向けの一言解説。
+// scoring.js の INDICATORS のキーに対応させる。
+const INDICATOR_DESC = {
+  selfCapitalRatio: '総資産のうち、返済不要の自己資金（純資産）が占める割合。高いほど財務が安定',
+  gearingRatio: '自己資本に対する有利子負債（借入金等）の比率。低いほど借入への依存度が低く健全',
+  fixedLongTermConformityRatio: '工場・設備等の固定資産を、自己資本と長期の借入金でどれだけ賄えているか。低いほど安定',
+  currentRatio: '1年以内に支払う負債に対し、1年以内に現金化できる資産がどれだけあるか。短期の支払余力',
+  ordinaryMargin: '売上高に対する経常利益（本業の利益＋財務収支）の割合。本業を含めた総合的な収益力',
+  roa: '総資産経常利益率（ROA）。保有する資産全体をどれだけ効率よく利益に変えられているか',
+  cashFlowScore: '経常利益に減価償却費を加えた、実際に手元に残る資金を稼ぐ力',
+  ordinaryIncomeGrowth: '前期と比べた経常利益の伸び率。事業の成長性を示す',
+  debtServiceYears: '今ある借入金を、本業で稼ぐ資金（営業利益＋減価償却費）で返済すると何年かかるかの目安。短いほど良い',
+  interestCoverageRatio: '営業利益等が支払利息の何倍あるか。金利負担に対する余力の大きさ',
+  cashFlowAmount: '経常利益＋減価償却費。借入金の返済原資となる、実際に生み出した資金の額',
+};
+
 // ---- 7. スコアリング ----------------------------------------------------------
 function renderScoring() {
   const s = STATE.scoring;
@@ -644,7 +663,7 @@ function renderScoring() {
     const catMax = items.reduce((a, i) => a + i.maxPoints, 0);
     const body = `<div class="chart-card-body" style="margin-bottom:6px;">${Viz.meter(catTotal, catMax, { width: 300, height: 12, color: Viz.PALETTE.series[0] })}</div>
       <table class="dsheet compact"><thead><tr><th>指標</th><th>数値</th><th>点数</th><th>次の基準（加点条件）</th></tr></thead><tbody>
-      ${items.map(i => `<tr><td>${i.label}</td><td>${i.value === null ? 'ー' : i.value.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}</td><td>${i.points}/${i.maxPoints}</td><td style="text-align:left;font-size:0.68rem;color:var(--ink-secondary);">${nextBandText(i)}</td></tr>`).join('')}
+      ${items.map(i => `<tr><td>${i.label}${INDICATOR_DESC[i.key] ? `<div style="font-weight:400;font-size:0.6rem;color:var(--ink-muted);white-space:normal;line-height:1.2;">${INDICATOR_DESC[i.key]}</div>` : ''}</td><td>${i.value === null ? 'ー' : i.value.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}</td><td>${i.points}/${i.maxPoints}</td><td style="text-align:left;font-size:0.68rem;color:var(--ink-secondary);">${nextBandText(i)}</td></tr>`).join('')}
       </tbody></table>`;
     return panel(`${label}（${catTotal}/${catMax}点）`, body);
   }).join('');
@@ -713,10 +732,11 @@ function exportExcel() {
   const c = STATE.coverage;
   addSheet('必要保障額', [
     ['項目', '金額'],
-    ['運転資金', c.workingCapital], ['短期返済資金', c.shortTermDebtRepayment],
-    ['長期返済資金', c.longTermDebtRepayment], ['自社株買取資金', c.stockBuyback],
-    ['小計（手取りベース）', c.totalBeforeTax], ['実効税率', c.assumptions.effectiveTaxRate],
-    ['必要保障額合計（保険金ベース）', c.total], ['準備済み資産', c.preparedAssets], ['不足金額', c.shortfall],
+    ['①運転資金（グロスアップ不要）', c.workingCapital], ['②短期返済資金', c.shortTermDebtRepayment],
+    ['③長期返済資金', c.longTermDebtRepayment], ['⑤自社株買取資金', c.stockBuyback],
+    ['②③⑤小計（実額）', c.grossUpTargetTotal], ['実効税率', c.assumptions.effectiveTaxRate],
+    ['②③⑤グロスアップ後', c.grossUpTargetTotal * c.taxGrossUpFactor],
+    ['必要保障額合計（①＋②③⑤グロスアップ後）', c.total], ['準備済み資産', c.preparedAssets], ['不足金額', c.shortfall],
   ]);
   const s = STATE.scoring;
   addSheet('スコアリング', [

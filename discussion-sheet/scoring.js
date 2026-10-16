@@ -144,18 +144,23 @@ const Scoring = (() => {
 
     const stockBuyback = (stockValuationPerShare || 0) * (sharesHeldByFamily || 0) * a.buybackRatio;
 
-    // 手取りベースでの必要資金合計。保険金として受け取る際は法人税等が課されるため、
-    // 実効税率で割り戻し（グロスアップ）して、実際に備えるべき保険金額ベースの
-    // 必要保障額を算出する（総額 ＝ 手取りベース ÷ (1－実効税率)）。
-    const totalBeforeTax = sum(workingCapital, shortTermDebtRepayment, longTermDebtRepayment, stockBuyback);
+    // 実効税率によるグロスアップは、保険金を「借入金の返済」「自社株の買取」に
+    // 充てる場合にのみ必要（保険差益が益金算入され法人税等が課されるため）。
+    // 一方、①運転資金（＝固定費）はその年の損金として経費算入されるため、
+    // 法人税の影響を相殺でき、グロスアップは不要。退職金も同様に損金算入される
+    // （ただし退職金は[参考]科目のため、どちらの合計にも元々含めていない）。
+    const noGrossUpTotal = workingCapital;
+    const grossUpTargetTotal = sum(shortTermDebtRepayment, longTermDebtRepayment, stockBuyback);
     const taxGrossUpFactor = 1 / (1 - a.effectiveTaxRate);
-    const total = totalBeforeTax * taxGrossUpFactor;
+    const totalBeforeTax = sum(noGrossUpTotal, grossUpTargetTotal); // 手取り・実額ベースでの合計（参考表示用）
+    const total = noGrossUpTotal + grossUpTargetTotal * taxGrossUpFactor;
     const shortfall = Math.max(0, total - (preparedAssets || 0));
 
     return {
       workingCapital, shortTermDebtRepayment, shortTermGuarantee, longTermDebtRepayment, longTermGuarantee,
       disabilityCapital, deathRetirement, resignationRetirement, stockBuyback,
-      preparedAssets: preparedAssets || 0, totalBeforeTax, taxGrossUpFactor, total, shortfall, assumptions: a,
+      preparedAssets: preparedAssets || 0, noGrossUpTotal, grossUpTargetTotal, totalBeforeTax, taxGrossUpFactor,
+      total, shortfall, assumptions: a,
     };
   }
   function sum(...vals) { return vals.reduce((a, b) => a + (Number(b) || 0), 0); }
