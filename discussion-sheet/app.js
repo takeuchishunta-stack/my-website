@@ -2,8 +2,20 @@
    UI 制御・描画ロジック（DOM 操作はすべてここに集約）
    ========================================================================== */
 
-let STATE = { raw: null, view: null, stockEval: null, scoring: null, coverage: null };
+let STATE = { raw: null, view: null, stockEval: null, scoring: null, coverage: null, outputMode: 'customer' };
 const TOTAL_PAGES = 7;
+
+// ---- 出力モード切替ヘルパー ---------------------------------------------------
+// internalNotice/internalOnly は「お客様向け」モードでは中身を一切出力しない
+// （CSSで隠すのではなくDOMに入れないため、PDF本文やHTMLソースを検索しても
+// 社内向けの注記・用語が一切見つからない状態になる）。
+function internalNotice(html, cls = 'notice') {
+  if (STATE.outputMode !== 'internal') return '';
+  return `<div class="${cls} internal-only">🔒${html}</div>`;
+}
+function internalOnly(html) {
+  return STATE.outputMode === 'internal' ? html : '';
+}
 
 // ---- 章アイコン（装飾用。識別は常にアイコン形状＋テキストラベルで行い、色だけに頼らない） ---
 const ICONS = {
@@ -13,6 +25,7 @@ const ICONS = {
   coverage: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c4 2 8 2 8 2v7c0 5-4 7-8 9-4-2-8-4-8-9V5s4 0 8-2z"/></svg>',
   scoring: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6 6.6.6-5 4.4 1.5 6.5L12 16l-5.9 3.5L7.6 13l-5-4.4 6.6-.6z"/></svg>',
   statements: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/></svg>',
+  overview: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>',
 };
 
 function sheetHead(iconKey, colorVar, title, pageNo) {
@@ -36,8 +49,11 @@ function stripHtml(s) { return String(s).replace(/<[^>]+>/g, ''); }
 const fmt = (n, digits = 0) => (n === null || n === undefined || Number.isNaN(n))
   ? '<span class="na">ー</span>'
   : Math.round(n * Math.pow(10, digits)) / Math.pow(10, digits) < 0
-    ? `<span class="neg">${(-n).toLocaleString('ja-JP', { maximumFractionDigits: digits })}減</span>`
+    ? `<span class="neg">△${(-n).toLocaleString('ja-JP', { maximumFractionDigits: digits })}</span>`
     : n.toLocaleString('ja-JP', { maximumFractionDigits: digits });
+// 「算出不可」等、数値の代わりに理由付きの文言を表示するための共通ラッパー
+const naText = (reason) => `<span class="na">算出不可（${reason}）</span>`;
+const unconfirmedText = (label = '未確認') => `<span class="na">${label}</span>`;
 const fmtYen = (n) => (n === null || n === undefined || Number.isNaN(n)) ? '<span class="na">ー</span>'
   : `${Math.round(n).toLocaleString('ja-JP')}円`;
 const fmtPct = (n) => (n === null || n === undefined || Number.isNaN(n)) ? '<span class="na">ー</span>'
@@ -50,6 +66,13 @@ function periodHeaderRow(periods) {
 
 function dataRow(label, values, { fmtFn = fmt, digits = 0, total = false } = {}) {
   const tds = values.map(v => `<td class="${cls(v)}">${fmtFn === fmt ? fmt(v, digits) : fmtFn(v)}</td>`).join('');
+  return `<tr class="${total ? 'total' : ''}"><td>${label}</td>${tds}</tr>`;
+}
+
+// 期ごとに表示内容を変える必要がある行（「算出不可」等の条件分岐を伴う）用。
+// cellFn(period) は完成済みのセル中身（HTML文字列）を返す。
+function dataRowByPeriod(label, periods, cellFn, { total = false } = {}) {
+  const tds = periods.map(p => `<td>${cellFn(p)}</td>`).join('');
   return `<tr class="${total ? 'total' : ''}"><td>${label}</td>${tds}</tr>`;
 }
 
@@ -106,13 +129,15 @@ function applyData(data) {
   } catch (e) { STATE.stockEval = null; console.error(e); }
 
   // スコアリング（直近期ベース）
+  // ギアリング比率・債務償還年数は、債務超過／営業赤字で符号が反転すると
+  // 「良い数値」に見えてしまうため、無効な期間は null を渡して0点（データなし扱い）にする。
   const r = latest.ratios;
   STATE.scoring = Scoring.scoreAll({
-    selfCapitalRatio: r.selfCapitalRatio, gearingRatio: r.gearingRatio,
+    selfCapitalRatio: r.selfCapitalRatio, gearingRatio: r.gearingRatioValid ? r.gearingRatio : null,
     fixedLongTermConformityRatio: r.fixedLongTermConformityRatio, currentRatio: r.currentRatio,
     ordinaryMargin: r.ordinaryMargin, roa: r.roa, cashFlowScore: r.cashFlowAmount,
     ordinaryIncomeGrowth: latest.yoy ? latest.yoy.ordinaryIncomeGrowth : null,
-    debtServiceYears: r.debtServiceYears, interestCoverageRatio: r.interestCoverageRatio,
+    debtServiceYears: r.debtServiceYearsValid ? r.debtServiceYears : null, interestCoverageRatio: r.interestCoverageRatio,
     cashFlowAmount: r.cashFlowAmount,
   });
 
@@ -123,7 +148,7 @@ function applyData(data) {
     STATE.stockEval ? STATE.stockEval.corporateTaxValue : 0,
     sharesHeldByFamily,
     data.officers && data.officers[0],
-    (data.preparedAssets || 0),
+    data.preparedAssets, // null/undefinedのまま渡す（「0円」と「未確認」を区別するため）
     {}
   );
 
@@ -144,8 +169,9 @@ function renderCover() {
     ['cashflow', '--sec-cashflow', 'キャッシュフローの観点', '営業・投資・財務の3区分で、お金の流れの実態を把握します。', 2],
     ['stock', '--sec-stock', '自社株の観点', '相続税評価額等、自社株の評価額を複数方式で試算します。', 3],
     ['coverage', '--sec-coverage', '必要保障の観点', '不測の事態に備え、事業継続に必要な資金を試算します。', 4],
-    ['scoring', '--sec-scoring', '4つの観点まとめ', '各観点の要点を1枚に整理し、全体像を確認します。', 5],
-    ['statements', '--sec-statements', '決算情報・スコアリング', '決算書の詳細と、定量データに基づく財務判定の根拠です。', 6],
+    ['overview', '--sec-overview', '4つの観点まとめ', '各観点の要点を1枚に整理し、全体像を確認します。', 5],
+    ['statements', '--sec-statements', '決算情報', '貸借対照表・損益計算書の3期推移です。', 6],
+    ['scoring', '--sec-scoring', 'スコアリング', '定量データに基づく財務判定の根拠です。', 7],
   ].map(([key, color, title, desc, page]) => `
     <div class="idx-row">
       <span class="icon-badge" style="background:${color.startsWith('--') ? `var(${color})` : color};">${ICONS[key]}</span>
@@ -192,7 +218,7 @@ function renderFinancial() {
     ${formulaLine(`自己資本比率 ＝ 純資産合計 ÷ 総資産合計 ＝ <b>${fmt(latest.bsSum.netAssets)}</b> ÷ <b>${fmt(latest.bsSum.totalAssets)}</b> ＝ <b>${fmtPct(latest.ratios.selfCapitalRatio)}</b>`)}
     <table class="dsheet compact"><thead>${periodHeaderRow(periods)}</thead><tbody>
     ${dataRow('自己資本比率[%]', periods.map(p => p.ratios.selfCapitalRatio), { fmtFn: fmtPct })}
-    ${dataRow('ギアリング比率[%]', periods.map(p => p.ratios.gearingRatio), { fmtFn: fmtPct })}
+    ${dataRowByPeriod('ギアリング比率[%]', periods, p => p.ratios.gearingRatioValid ? fmtPct(p.ratios.gearingRatio) : naText('債務超過'))}
     ${dataRow('固定長期適合率[%]', periods.map(p => p.ratios.fixedLongTermConformityRatio), { fmtFn: fmtPct })}
     ${dataRow('流動比率[%]', periods.map(p => p.ratios.currentRatio), { fmtFn: fmtPct })}
     ${dataRow('純資産合計', periods.map(p => p.bsSum.netAssets))}
@@ -201,16 +227,19 @@ function renderFinancial() {
 
   const debtBody = `
     <div class="chart-card-body">${Viz.columnChart(labels, periods.map(p => p.bsSum.interestBearingDebt), { color: Viz.PALETTE.series[0] })}</div>
-    ${formulaLine(`返済に要する年数 ＝ (有利子負債－現金預金) ÷ (営業利益＋減価償却費) ＝ <b>${fmt(latest.ratios.debtServiceYears, 1)}</b>年（1年以内が最高評価）`)}
+    ${latest.ratios.debtServiceYearsValid
+      ? formulaLine(`返済に要する年数 ＝ (有利子負債－現金預金) ÷ (営業利益＋減価償却費) ＝ <b>${fmt(latest.ratios.debtServiceYears, 1)}</b>年（1年以内が最高評価）${latest.ratios.depreciationMissing ? '　※減価償却費が未入力のため0円として計算しています' : ''}`)
+      : formulaLine(`返済に要する年数 ＝ (有利子負債－現金預金) ÷ (営業利益＋減価償却費) ＝ 算出不可（営業利益＋減価償却費が0以下のため）`)}
     <table class="dsheet compact"><thead>${periodHeaderRow(periods)}</thead><tbody>
     ${dataRow('短期借入金合計', periods.map(p => p.loanSum.shortTermTotal))}
     ${dataRow('長期借入金合計', periods.map(p => p.loanSum.longTermTotal))}
     ${dataRow('有利子負債合計', periods.map(p => p.bsSum.interestBearingDebt), { total: true })}
-    ${dataRow('債務償還年数[年]', periods.map(p => p.ratios.debtServiceYears), { fmtFn: (v) => v === null ? 'ー' : v.toFixed(1) + '年' })}
-    </tbody></table>`;
+    ${dataRowByPeriod('債務償還年数[年]', periods, p => p.ratios.debtServiceYearsValid ? fmt(p.ratios.debtServiceYears, 1) + '年' : naText('営業赤字'))}
+    </tbody></table>
+    ${latest.ratios.depreciationMissing ? `<div class="caption">⚠ 減価償却費未入力：損益計算書・販管費・製造原価の「減価償却費」科目の金額を pl.depreciationAnnualTotal に入力してください。未入力のため上記は償却費を0円として計算した暫定値です。</div>` : ''}`;
 
   const loanRowsTable = (loans, cols) => {
-    if (!loans || !loans.length) return `<div class="caption">内訳データなし（決算書の勘定科目内訳書等をご確認ください）</div>`;
+    if (!loans || !loans.length) return `<div class="caption">${unconfirmedText('内訳未確認（決算書の勘定科目内訳書等でご確認ください）')}</div>`;
     return `<table class="dsheet compact"><thead><tr><th>金融機関名</th><th>残高</th><th>金利</th><th>連帯保証額(参考)</th></tr></thead><tbody>
       ${loans.map(l => `<tr><td>${l.lender || 'ー'}</td><td>${fmt(l.balance)}</td><td>${l.rate != null ? l.rate + '%' : 'ー'}</td><td>${fmt(l.guaranteeAmount || 0)}</td></tr>`).join('')}
     </tbody></table>`;
@@ -273,14 +302,21 @@ function renderCashFlow() {
 
   // 今年度のキャッシュフロー構成（単期間・カテゴリ別の棒グラフ）。
   // 複数期間の推移ではなく、直近期の内訳を一目で読み取れる形で示す。
+  const cfReconciliationNote = latest.cf && latest.cf.cashReconciliationDiff != null
+    ? (Math.abs(latest.cf.cashReconciliationDiff) > Math.max(1000, Math.abs(latest.cf.cashEnd) * 0.005)
+      ? `<div class="caption">⚠ 差異：CF計 ${fmt(latest.cf.netChange)}円に対し、現預金の実際の増減は ${fmt(latest.cf.actualCashChange)}円（差異 ${fmt(latest.cf.cashReconciliationDiff)}円）。本CF計算書は間接法による近似のため、実際の現預金増減と完全には一致しません。</div>`
+      : '')
+    : '';
   const cfNowBody = latest.cf ? `
     <div class="chart-card-body">${Viz.groupedBarChart(
       ['①営業CF', '②投資CF', '③フリーCF(①+②)', '④財務CF', '⑤CF計(③+④)'],
       [{ name: '金額', values: [latest.cf.operatingCF, latest.cf.investingCF, latest.cf.freeCashFlow, latest.cf.financingCF, latest.cf.netChange] }],
-      { height: 150, showValues: true, colorBySign: true }
+      { height: 120, showValues: true, colorBySign: true }
     )}</div>
     ${formulaLine(`営業CF ＝ 税引前当期純利益＋減価償却費±運転資本増減－法人税等 ＝ <b>${fmt(latest.cf.operatingCF)}</b>　／　フリーCF(①+②) ＝ <b>${fmt(latest.cf.freeCashFlow)}</b>`)}
-    <div class="caption">直近期（${latest.label}）のキャッシュフロー構成。緑＝資金の増加、赤＝資金の減少。</div>`
+    <div class="caption">直近期（${latest.label}）のキャッシュフロー構成。緑＝資金の増加、赤＝資金の減少。</div>
+    ${latest.cf.depreciationMissing ? `<div class="caption">⚠ 減価償却費未入力のため、営業CF・投資CFは償却費を0円とした暫定値です（CF計・フリーCFへの影響はありません）。</div>` : ''}
+    ${cfReconciliationNote}`
     : `<div class="caption">最も古い期間は前期の貸借対照表が無いため、キャッシュフローを算出できません。</div>`;
 
   const officerList = latest.officerCompensationDetail || [];
@@ -326,11 +362,14 @@ function renderSgaTable(period) {
     </div>`).join('');
 
   const totalLabel = isTagged
-    ? `固定費合計：${fmt(DiscussionEngine.sum(...entries.map(([, v]) => v)))}円（必要保障額「①運転資金」の算出対象）。全科目の内訳はExcel出力に収録。`
-    : `販管費合計：${fmt(period.plSum.sgaTotal)}円。固定費／変動費の区分が未入力のため全科目を参考表示しています。全科目の内訳はExcel出力に収録。`;
+    ? `固定費合計：${fmt(DiscussionEngine.sum(...entries.map(([, v]) => v)))}円`
+    : `販管費合計：${fmt(period.plSum.sgaTotal)}円`;
 
   return `<div class="chart-card-body" style="margin-bottom:6px;">${bars}</div>
-    <div class="caption">${totalLabel}</div>`;
+    <div class="caption">${totalLabel}</div>
+    ${internalNotice(isTagged
+      ? '固定費合計は必要保障額「①運転資金」の算出対象。全科目の内訳はExcelダウンロードに収録。'
+      : '固定費／変動費の区分（sgaFixedAccounts）が未入力のため、販管費全体の上位科目を参考表示。全科目の内訳はExcelダウンロードに収録。', 'caption')}`;
 }
 
 // ---- 3. 自社株の観点 ---------------------------------------------------------
@@ -413,34 +452,44 @@ function renderStock() {
 // ---- 4. 必要保障の観点 --------------------------------------------------------
 function renderCoverage() {
   const c = STATE.coverage;
-  const covered = Math.max(0, c.total - c.shortfall);
+  const preparedConfirmed = c.preparedAssetsStatus === 'confirmed';
+  const officerConfirmed = c.officerDataStatus === 'confirmed';
+  const covered = preparedConfirmed ? Math.max(0, c.total - c.shortfall) : 0;
+  const retirementBasis = officerConfirmed
+    ? `最終報酬月額 × 在任年数 × 功績倍率${c.assumptions.deathRetirementMultiple}`
+    : '役員情報（最終報酬月額・在任年数）が未確認のため算出不可';
   const rows = [
     ['①運転資金', c.workingCapital, `月額固定費 × ${c.assumptions.workingCapitalMonths}ヶ月`],
     ['②負債等の返済資金（短期）', c.shortTermDebtRepayment, '短期借入金＋1年以内返済長期借入金'],
     ['　内、連帯保証債務（短期）[参考]', c.shortTermGuarantee, '短期の連帯保証額合計'],
     ['③負債等の返済資金（長期）', c.longTermDebtRepayment, '長期借入金残高'],
     ['　内、連帯保証債務（長期）[参考]', c.longTermGuarantee, '長期の連帯保証額合計'],
-    ['④役員死亡退職金[参考]', c.deathRetirement, `最終報酬月額 × 在任年数 × 功績倍率${c.assumptions.deathRetirementMultiple}`],
-    ['　役員勇退退職金[参考]', c.resignationRetirement, `最終報酬月額 × 在任年数 × 功績倍率${c.assumptions.resignationRetirementMultiple}`],
+    ['④役員死亡退職金[参考]', c.deathRetirement, retirementBasis],
+    ['　役員勇退退職金[参考]', c.resignationRetirement, officerConfirmed ? `最終報酬月額 × 在任年数 × 功績倍率${c.assumptions.resignationRetirementMultiple}` : retirementBasis],
     ['⑤事業承継対策資金（自社株買取資金）', c.stockBuyback, '自社株評価額（法人税評価） × 同族保有株数'],
   ];
   const taxRatePct = (c.assumptions.effectiveTaxRate * 100).toFixed(2);
+  const fmtRow = (v) => (v === null || v === undefined) ? unconfirmedText() : fmt(v);
 
-  const tryBody = `<div class="chart-card-body">${Viz.stackedBarRow('必要保障額 合計 ' + stripHtml(fmtYen(c.total)), [
+  const tryBody = preparedConfirmed ? `<div class="chart-card-body">${Viz.stackedBarRow('必要保障額 合計 ' + stripHtml(fmtYen(c.total)), [
       { name: `準備済み資産 ${stripHtml(fmtYen(covered))}`, value: covered, color: Viz.PALETTE.good },
       { name: `不足金額 ${stripHtml(fmtYen(c.shortfall))}`, value: c.shortfall, color: Viz.PALETTE.critical },
     ], { width: 520, barHeight: 26 })}</div>
-    ${formulaLine(`不足金額 ＝ 必要保障額合計 － 準備済み資産 ＝ <b>${fmt(c.total)}</b> － <b>${fmt(c.preparedAssets)}</b> ＝ <b>${fmt(c.shortfall)}</b>`)}`;
+    ${formulaLine(`不足金額 ＝ 必要保障額合計 － 準備済み資産 ＝ <b>${fmt(c.total)}</b> － <b>${fmt(c.preparedAssets)}</b> ＝ <b>${fmt(c.shortfall)}</b>`)}`
+    : `<div class="chart-card-body">${Viz.stackedBarRow('必要保障額 合計 ' + stripHtml(fmtYen(c.total)), [
+      { name: '必要保障額（全額）', value: c.total, color: Viz.PALETTE.warning },
+    ], { width: 520, barHeight: 26 })}</div>
+    <div class="notice">準備済み資産（既加入の生命保険の解約返戻金相当額等）が未確認です。ヒアリング・確認後に不足金額を確定してください。</div>`;
 
   const grossedUpTarget = c.grossUpTargetTotal * c.taxGrossUpFactor;
   const tableBody = `<table class="dsheet compact"><thead><tr><th>項目</th><th>金額</th><th>試算根拠</th></tr></thead><tbody>
-    ${rows.map(([l, v, basis]) => `<tr><td>${l}</td><td class="${cls(v)}">${fmt(v)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">${basis}</td></tr>`).join('')}
+    ${rows.map(([l, v, basis]) => `<tr><td>${l}</td><td class="${v == null ? 'na' : cls(v)}">${fmtRow(v)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">${basis}</td></tr>`).join('')}
     <tr class="total"><td>①運転資金（グロスアップ不要）</td><td>${fmt(c.noGrossUpTotal)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">固定費はその年の損金に算入されるため実効税率の調整は不要</td></tr>
     <tr class="total"><td>②③⑤ 小計（借入返済＋自社株買取・実額）</td><td>${fmt(c.grossUpTargetTotal)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">②＋③＋⑤（[参考]科目を除く）</td></tr>
     <tr class="total"><td>②③⑤ グロスアップ後（保険金ベース）</td><td>${fmt(grossedUpTarget)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">小計 ÷ (1－実効税率${taxRatePct}%)</td></tr>
     <tr class="total"><td>必要保障額 合計</td><td>${fmt(c.total)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">①＋②③⑤グロスアップ後</td></tr>
-    <tr><td>準備済み資産（既加入の保険等）</td><td class="${cls(-c.preparedAssets)}">${fmt(-c.preparedAssets)}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">現在加入している生命保険の解約返戻金相当額等</td></tr>
-    <tr class="total"><td>不足金額</td><td>${fmt(c.shortfall)}</td><td></td></tr>
+    <tr><td>準備済み資産（既加入の保険等）</td><td class="${preparedConfirmed ? cls(-c.preparedAssets) : 'na'}">${preparedConfirmed ? fmt(-c.preparedAssets) : unconfirmedText('未確認（ヒアリング前）')}</td><td style="text-align:left;font-size:0.7rem;color:var(--ink-muted);">現在加入している生命保険の解約返戻金相当額等</td></tr>
+    <tr class="total"><td>不足金額</td><td>${preparedConfirmed ? fmt(c.shortfall) : unconfirmedText('準備済み資産を確認後に確定')}</td><td></td></tr>
     </tbody></table>
     ${formulaLine(`必要保障額 合計 ＝ ①運転資金 ＋ (②③負債等の返済資金＋⑤自社株買取資金) ÷ (1－実効税率) ＝ <b>${fmt(c.noGrossUpTotal)}</b> ＋ <b>${fmt(c.grossUpTargetTotal)}</b> ÷ (1－${taxRatePct}%) ＝ <b>${fmt(c.total)}</b>（借入金の返済・自社株買取は保険金の受取時に益金算入され法人税等が課されるため保険金ベースに割り戻す一方、①運転資金＝固定費はその年の損金に算入されるためグロスアップしません）`)}`;
 
@@ -453,9 +502,9 @@ function renderCoverage() {
   const breakdownItems = [
     ['①運転資金', c.workingCapital],
     ['②③負債等の返済資金', c.shortTermDebtRepayment + c.longTermDebtRepayment],
-    ['④退職金・弔慰金', c.deathRetirement + c.resignationRetirement],
+    ['④退職金・弔慰金', officerConfirmed ? (c.deathRetirement + c.resignationRetirement) : null],
     ['⑤自社株買取資金', c.stockBuyback],
-  ].filter(([, v]) => v);
+  ].filter(([, v]) => v !== null && v !== undefined && v !== 0);
   const maxBreakdown = Math.max(...breakdownItems.map(([, v]) => v), 1);
   const breakdownBody = `<div class="chart-card-body">${breakdownItems.map(([k, v]) => `
     <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">
@@ -463,12 +512,14 @@ function renderCoverage() {
       <div style="flex:1;">${Viz.meter(v, maxBreakdown, { width: 260, height: 11, color: Viz.PALETTE.series[1] })}</div>
       <div style="width:95px;text-align:right;font-size:0.74rem;flex:none;">${fmt(v)}</div>
     </div>`).join('')}</div>
-    <div class="caption">必要保障額合計 ${fmt(c.total)}円 のうち、金額の大きい構成要素を比較しています（参考科目を除く）。</div>`;
+    <div class="caption">必要保障額合計 ${fmt(c.total)}円 のうち、金額の大きい構成要素を比較しています（参考科目を除く）。${officerConfirmed ? '' : '役員情報が未確認のため退職金・弔慰金は含まれていません。'}</div>`;
 
-  const shortfallRatio = c.total ? (c.shortfall / c.total) * 100 : 0;
-  const dynamicTakeaway = c.shortfall > 0
-    ? `必要保障額合計${fmt(c.total)}円に対し、現状の準備済み資産は${fmt(c.preparedAssets)}円にとどまり、不足金額は${fmt(c.shortfall)}円（必要額の${shortfallRatio.toFixed(0)}%）です。リスクの大きさや変化に応じ、保険等による計画的な資金準備が必要です。`
-    : `必要保障額合計${fmt(c.total)}円に対し、準備済み資産${fmt(c.preparedAssets)}円で既に充足しています。今後の事業規模の変化に応じて、定期的に必要保障額を見直してください。`;
+  const shortfallRatio = preparedConfirmed && c.total ? (c.shortfall / c.total) * 100 : null;
+  const dynamicTakeaway = !preparedConfirmed
+    ? `必要保障額合計${fmt(c.total)}円を試算しました。準備済み資産（既加入の生命保険の解約返戻金相当額等）が未確認のため、不足金額は確認後に確定します。`
+    : c.shortfall > 0
+      ? `必要保障額合計${fmt(c.total)}円に対し、現状の準備済み資産は${fmt(c.preparedAssets)}円にとどまり、不足金額は${fmt(c.shortfall)}円（必要額の${shortfallRatio.toFixed(0)}%）です。リスクの大きさや変化に応じ、保険等による計画的な資金準備が必要です。`
+      : `必要保障額合計${fmt(c.total)}円に対し、準備済み資産${fmt(c.preparedAssets)}円で既に充足しています。今後の事業規模の変化に応じて、定期的に必要保障額を見直してください。`;
 
   const html = `<div class="sheet">
     ${sheetHead('coverage', '--sec-coverage', '必要保障の観点', 4)}
@@ -521,10 +572,12 @@ function renderOverview() {
   const stockQuadrant = sv ? `<div class="kv-grid">
     <div class="kv-item"><div class="k">自社株評価額（相続税評価・1株）</div><div class="v">${fmtYen(sv.inheritanceTaxValue)}</div></div>
     <div class="kv-item"><div class="k">会社規模</div><div class="v">${sv.sizeJudge.size}</div></div>
-    </div>` : `<div class="caption">自社株評価：対象外（詳細は自社株タブ参照）</div>`;
+    </div>` : `<div class="caption">自社株評価：対象外（詳細はP.3をご覧ください）</div>`;
   const coverageQuadrant = `<div class="kv-grid">
     ${statTile('必要保障額 合計', cov.total, null)}
-    ${statTile('不足金額', cov.shortfall, null, { upIsGood: false })}
+    ${cov.preparedAssetsStatus === 'confirmed'
+      ? statTile('不足金額', cov.shortfall, null, { upIsGood: false })
+      : `<div class="kv-item"><div class="k">不足金額</div><div class="v">${unconfirmedText('準備済み資産を確認後に確定')}</div></div>`}
     </div>`;
 
   const obs = [];
@@ -535,15 +588,17 @@ function renderOverview() {
   obs.push(sv
     ? `自社株評価額（相続税評価・1株）は${fmtYen(sv.inheritanceTaxValue)}、会社規模区分は「${sv.sizeJudge.size}」です。`
     : `自社株（出資持分）評価は対象外のため、別途評価方法の確認が必要です。`);
-  obs.push(cov.shortfall > 0
-    ? `必要保障額合計${fmt(cov.total)}円に対し不足金額は${fmt(cov.shortfall)}円。保険等による資金準備の検討余地があります。`
-    : `必要保障額合計${fmt(cov.total)}円に対し、現状の準備済み資産で充足しています。`);
+  obs.push(cov.preparedAssetsStatus !== 'confirmed'
+    ? `必要保障額合計${fmt(cov.total)}円を試算。準備済み資産が未確認のため、不足金額は確認後に確定します。`
+    : cov.shortfall > 0
+      ? `必要保障額合計${fmt(cov.total)}円に対し不足金額は${fmt(cov.shortfall)}円。資金準備の必要額の目安としてご確認ください。`
+      : `必要保障額合計${fmt(cov.total)}円に対し、現状の準備済み資産で充足しています。`);
   const obsBody = `<ul style="margin:0;padding-left:18px;font-size:0.76rem;line-height:1.9;color:var(--ink);">
     ${obs.map(o => `<li>${o}</li>`).join('')}
     </ul>`;
 
   const html = `<div class="sheet">
-    ${sheetHead('scoring', '--sec-scoring', '4つの観点まとめ', 5)}
+    ${sheetHead('overview', '--sec-overview', '4つの観点まとめ', 5)}
     <div class="sheet-sub">事業の永続に向けて ～ 各観点の要点を1枚に整理（直近期：${latest.label}）</div>
     <div class="grid-2">
       ${panel('財務判定', `<div class="grade-row"><div class="grade-badge">${g.grade}</div><div class="grade-label"><strong>${g.gradeLabel}</strong>100点換算 ${g.scaled}点</div></div><div class="grade-meter-wrap">${Viz.gradeMeter(g.grade)}</div>`, { span2: true })}
@@ -551,7 +606,7 @@ function renderOverview() {
       ${panel('キャッシュフローの観点', cfQuadrant)}
       ${panel('自社株の観点', stockQuadrant)}
       ${panel('必要保障の観点', coverageQuadrant)}
-      ${panel('総括所見', obsBody, { span2: true, tag: '自動生成・要確認' })}
+      ${panel('総括所見', obsBody, { span2: true, tag: internalOnly('自動生成・要確認') })}
     </div>
   </div>`;
   document.getElementById('tab-overview').innerHTML = html;
@@ -637,6 +692,14 @@ const INDICATOR_DESC = {
 // ---- 7. スコアリング ----------------------------------------------------------
 function renderScoring() {
   const s = STATE.scoring;
+  const latest = STATE.view.periods[STATE.view.periods.length - 1];
+  const valueText = (i) => {
+    if (i.key === 'gearingRatio' && !latest.ratios.gearingRatioValid) return naText('債務超過');
+    if (i.key === 'debtServiceYears' && !latest.ratios.debtServiceYearsValid) return naText('営業赤字');
+    if (i.value === null) return 'ー';
+    const depCaveat = (i.key === 'cashFlowScore' || i.key === 'cashFlowAmount') && latest.ratios.depreciationMissing ? '※' : '';
+    return i.value.toLocaleString('ja-JP', { maximumFractionDigits: 2 }) + depCaveat;
+  };
   const byCategory = {};
   Object.entries(s.results).forEach(([key, r]) => {
     byCategory[r.category] = byCategory[r.category] || [];
@@ -663,7 +726,7 @@ function renderScoring() {
     const catMax = items.reduce((a, i) => a + i.maxPoints, 0);
     const body = `<div class="chart-card-body" style="margin-bottom:6px;">${Viz.meter(catTotal, catMax, { width: 300, height: 12, color: Viz.PALETTE.series[0] })}</div>
       <table class="dsheet compact"><thead><tr><th>指標</th><th>数値</th><th>点数</th><th>次の基準（加点条件）</th></tr></thead><tbody>
-      ${items.map(i => `<tr><td>${i.label}${INDICATOR_DESC[i.key] ? `<div style="font-weight:400;font-size:0.6rem;color:var(--ink-muted);white-space:normal;line-height:1.2;">${INDICATOR_DESC[i.key]}</div>` : ''}</td><td>${i.value === null ? 'ー' : i.value.toLocaleString('ja-JP', { maximumFractionDigits: 2 })}</td><td>${i.points}/${i.maxPoints}</td><td style="text-align:left;font-size:0.68rem;color:var(--ink-secondary);">${nextBandText(i)}</td></tr>`).join('')}
+      ${items.map(i => `<tr><td>${i.label}${INDICATOR_DESC[i.key] ? `<div style="font-weight:400;font-size:0.6rem;color:var(--ink-muted);white-space:normal;line-height:1.2;">${INDICATOR_DESC[i.key]}</div>` : ''}</td><td>${valueText(i)}</td><td>${i.points}/${i.maxPoints}</td><td style="text-align:left;font-size:0.68rem;color:var(--ink-secondary);">${nextBandText(i)}</td></tr>`).join('')}
       </tbody></table>`;
     return panel(`${label}（${catTotal}/${catMax}点）`, body);
   }).join('');
@@ -671,7 +734,8 @@ function renderScoring() {
   const html = `<div class="sheet">
     ${sheetHead('scoring', '--sec-scoring', 'スコアリング', 7)}
     <div class="sheet-sub">安全性・収益性・成長性・返済力の4区分を100点満点で採点し、財務判定を決定します。</div>
-    <div class="notice">⚠ スコアリングの4区分・配点構成（安全性34点／収益性15点／成長性25点／返済力55点）・100点換算・財務判定1〜7のバンドは見本2社の実際の合計点から検算済みです。一方、各指標の詳細な閾値（％と点数の対応）はベストエフォートでの転記のため、実際の与信判断に使う前に必ず原本と突き合わせてください。</div>
+    ${internalNotice('⚠ スコアリングの4区分・配点構成（安全性34点／収益性15点／成長性25点／返済力55点）・100点換算・財務判定1〜7のバンドは見本2社の実際の合計点から検算済みです。一方、各指標の詳細な閾値（％と点数の対応）はベストエフォートでの転記のため、実際の与信判断に使う前に必ず原本と突き合わせてください。')}
+    ${latest.ratios.depreciationMissing ? `<div class="caption">※ 減価償却費未入力のため、収益力（キャッシュフロー額）・キャッシュフロー額は償却費を0円とした暫定値です。</div>` : ''}
     <div class="grid-2">
       ${panel('総合判定', `<div class="grade-row"><div class="grade-badge">${s.grade}</div><div class="grade-label"><strong>${s.gradeLabel}</strong>${s.total} / ${s.maxTotal}点 → 100点換算 ${s.scaled}点</div></div><div class="grade-meter-wrap">${Viz.gradeMeter(s.grade)}</div>`, { span2: true })}
       ${catPanels}
@@ -706,6 +770,10 @@ function exportExcel() {
     ['投資CF', ...periods.map(p => p.cf ? p.cf.investingCF : '')],
     ['フリーCF', ...periods.map(p => p.cf ? p.cf.freeCashFlow : '')],
     ['財務CF', ...periods.map(p => p.cf ? p.cf.financingCF : '')],
+    ['CF計', ...periods.map(p => p.cf ? p.cf.netChange : '')],
+    ['現預金の実際の増減', ...periods.map(p => p.cf ? p.cf.actualCashChange : '')],
+    ['差異（CF計－実際の増減）', ...periods.map(p => p.cf ? p.cf.cashReconciliationDiff : '')],
+    ['減価償却費', ...periods.map(p => p.plSum.depreciationStatus === 'confirmed' ? p.plSum.depreciation : '未入力')],
     ['売上高', ...periods.map(p => p.pl.netSales)],
     ['経常利益率[%]', ...periods.map(p => p.ratios.ordinaryMargin)],
   ]);
@@ -768,4 +836,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('apply-json').addEventListener('click', applyFromTextarea);
   document.getElementById('export-pdf').addEventListener('click', () => window.print());
   document.getElementById('export-excel').addEventListener('click', exportExcel);
+  document.getElementById('toggle-mode').addEventListener('click', toggleOutputMode);
 });
+
+// ---- 出力モード（お客様向け／内部確認用）の切替 --------------------------------
+// お客様向けPDFに社内メモ（検算済みの根拠・ベストエフォートの注記・内部用語等）が
+// 混入しないよう、既定は「お客様向け」。内部確認用に切り替えると、各種注記が表示される。
+function toggleOutputMode() {
+  STATE.outputMode = STATE.outputMode === 'internal' ? 'customer' : 'internal';
+  const btn = document.getElementById('toggle-mode');
+  btn.dataset.mode = STATE.outputMode;
+  btn.textContent = STATE.outputMode === 'internal' ? '🔒 内部確認用表示' : '👤 お客様向け表示';
+  if (STATE.view) renderAll();
+}

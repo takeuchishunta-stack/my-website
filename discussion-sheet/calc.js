@@ -38,6 +38,11 @@ const DiscussionEngine = (() => {
   }
 
   // ---- P/L 集計 -------------------------------------------------------------
+  // 減価償却費は pl.depreciationAnnualTotal（損益計算書・販管費・製造原価の「減価償却費」
+  // 科目から取得した実額）を唯一の入力源とする。未入力の場合は 0 として扱わず null にし、
+  // depreciationStatus:'missing' を立てる（呼び出し側は "未入力" を明示し、推計値で埋めない）。
+  // 以降の計算（債務償還年数・キャッシュフロー額・CF計算書）では、未入力時は暫定的に 0 扱いで
+  // 計算を続行しつつ、結果に depreciationMissing を伝播させて UI 側に注記を出させる。
   function plSummary(pl) {
     const sgaTotal = pl.sgaTotal != null ? pl.sgaTotal
       : sum(...Object.values(pl.sgaDetail || {}));
@@ -46,8 +51,10 @@ const DiscussionEngine = (() => {
     const ordinaryIncome = sum(operatingIncome, pl.nonOperatingIncome, -(pl.nonOperatingExpenses || 0));
     const incomeBeforeTax = sum(ordinaryIncome, pl.extraordinaryIncome, -(pl.extraordinaryLoss || 0));
     const netIncome = sum(incomeBeforeTax, -(pl.incomeTaxes || 0));
-    const depreciation = (pl.sgaDetail && pl.sgaDetail.depreciation) || pl.depreciation || 0;
-    return { sgaTotal, grossProfit, operatingIncome, ordinaryIncome, incomeBeforeTax, netIncome, depreciation };
+    const depreciationInput = pl.depreciationAnnualTotal;
+    const depreciationStatus = (depreciationInput === null || depreciationInput === undefined) ? 'missing' : 'confirmed';
+    const depreciation = depreciationStatus === 'confirmed' ? depreciationInput : 0;
+    return { sgaTotal, grossProfit, operatingIncome, ordinaryIncome, incomeBeforeTax, netIncome, depreciation, depreciationStatus };
   }
 
   // ---- 固定費集計 -------------------------------------------------------------
@@ -98,9 +105,17 @@ const DiscussionEngine = (() => {
   // ---- 財務比率（単期で求まるもの） --------------------------------------------
   function ratiosForPeriod(a) {
     const { bsSum: b, plSum: p } = a;
+    // ギアリング比率・債務償還年数は、分母が0以下（債務超過／営業赤字で減価償却費を
+    // 加えても赤字）だと符号が反転し、見かけ上「良い数値」に化けてしまう。
+    // この状態では比率そのものが意味を持たないため、有効フラグを立てて
+    // 画面側で「算出不可（債務超過／営業赤字）」と表示させ、スコアリングにも
+    // （nullを渡すことで）反映させる。
+    const gearingRatioValid = b.netAssets > 0;
+    const debtServiceYearsValid = sum(p.operatingIncome, p.depreciation) > 0;
     return {
       selfCapitalRatio: pct(b.netAssets, b.totalAssets),
       gearingRatio: pct(b.interestBearingDebt, b.netAssets),
+      gearingRatioValid,
       currentRatio: pct(b.currentAssets, b.currentLiabilities),
       fixedLongTermConformityRatio: pct(b.fixedAssets, sum(b.netAssets, b.fixedLiabilities)),
       grossMargin: pct(p.grossProfit, a.pl.netSales),
@@ -109,7 +124,9 @@ const DiscussionEngine = (() => {
       roa: pct(p.ordinaryIncome, b.totalAssets),
       cashFlowAmount: sum(p.ordinaryIncome, p.depreciation),
       debtServiceYears: div(sum(b.interestBearingDebt, -(a.bs.cash || 0)), sum(p.operatingIncome, p.depreciation)),
+      debtServiceYearsValid,
       interestCoverageRatio: div(sum(p.operatingIncome, a.pl.interestAndDividendIncome || 0), a.pl.interestExpense || 0),
+      depreciationMissing: p.depreciationStatus === 'missing',
     };
   }
 
@@ -166,14 +183,20 @@ const DiscussionEngine = (() => {
     const netChange = sum(operatingCF, investingCF, financingCF);
     const cashBegin = b0.netAssets != null ? (prev.bs.cash || 0) : null;
     const cashEnd = curr.bs.cash || 0;
+    // 検算：理論上は「CF計＝現預金の実際の増減」と一致するはずだが、間接法での近似
+    // （特に投資CFの簿価差からの推定）により差異が生じ得るため、両者を突き合わせて
+    // 差異を明示する（原因が分かっている分の調整は未実装。差異行として表示するのみ）。
+    const actualCashChange = cashBegin != null ? sum(cashEnd, -cashBegin) : null;
+    const cashReconciliationDiff = actualCashChange != null ? sum(netChange, -actualCashChange) : null;
 
     return {
-      depreciation, allowanceChange, receivableChange, inventoryChange, payableChange,
+      depreciation, depreciationMissing: p1.depreciationStatus === 'missing',
+      allowanceChange, receivableChange, inventoryChange, payableChange,
       otherCurrentAssetChange, otherCurrentLiabilityChange, subtotal,
       interestDividendIncome, interestExpense, taxesPaid, operatingCF,
       tangibleChange, intangibleChange, investmentsChange, investingCF,
       shortTermLoanChange, longTermLoanChange, officerLoanChange, dividendsPaid, financingCF,
-      netChange, cashBegin, cashEnd,
+      netChange, cashBegin, cashEnd, actualCashChange, cashReconciliationDiff,
       freeCashFlow: sum(operatingCF, investingCF),
     };
   }

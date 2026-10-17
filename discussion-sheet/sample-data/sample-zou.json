@@ -91,6 +91,7 @@
           "貸倒償却費": 69031,
           "雑費": 64274
         },
+        "depreciationAnnualTotal": 165000,
         "nonOperatingIncome": 30373,
         "nonOperatingExpenses": 0,
         "interestAndDividendIncome": 10,
@@ -176,6 +177,7 @@
           "貸倒償却費": 85732,
           "雑費": 84031
         },
+        "depreciationAnnualTotal": 1172673,
         "nonOperatingIncome": 1268309,
         "nonOperatingExpenses": 120137,
         "interestAndDividendIncome": 2203,

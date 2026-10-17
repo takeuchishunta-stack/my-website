@@ -6,7 +6,7 @@
   },
   "entityType": "医療法人",
   "skipStockValuation": true,
-  "skipStockValuationReason": "医療法人の出資持分は類似業種比準方式を用いず、定款が出資額限度法人かどうか等で評価の考え方が変わるため、本ツールでは未実装。別途、出資者構成・定款の定めを確認のうえ評価する必要がある。",
+  "skipStockValuationReason": "出資持分の評価は、定款（持分あり／出資額限度法人／持分なし）と出資者構成の確認が必要なため、本資料では未算出です。確認後、税理士とともに評価します。",
   "companyName": "医療法人社団 よつ葉会",
   "industryCategory": "その他",
   "industryDetail": "医療,福祉 ＞ 介護老人保健施設等",
@@ -56,6 +56,7 @@
         "netSales": 853941270,
         "costOfSales": 133134381,
         "sgaTotal": 701990317,
+        "depreciationAnnualTotal": 11145831,
         "sgaDetail": {
           "常勤医師給与": 11371049,
           "常勤看護師給": 48598431,
@@ -219,6 +220,7 @@
         "netSales": 895842914,
         "costOfSales": 131810002,
         "sgaTotal": 772050413,
+        "depreciationAnnualTotal": 12837295,
         "sgaDetail": {
           "常勤医師給与": 6344802,
           "常勤看護師給": 49386774,
@@ -383,6 +385,7 @@
         "netSales": 1001170970,
         "costOfSales": 164548651,
         "sgaTotal": 781745032,
+        "depreciationAnnualTotal": 11119981,
         "sgaDetail": {
           "常勤医師給与": 19364218,
           "常勤看護師給": 52552820,

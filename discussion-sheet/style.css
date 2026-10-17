@@ -33,6 +33,7 @@
   --sec-coverage: #b5531f;
   --sec-scoring: #a3272a;
   --sec-statements: #3a3a38;
+  --sec-overview: #2d6a8f;
 }
 @media print { :root { --bg: #ffffff; } }
 

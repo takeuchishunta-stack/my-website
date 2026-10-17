@@ -125,7 +125,7 @@ const Scoring = (() => {
     buybackRatio: 1.0,             // ⑨自社株買取資金＝自社株評価額の何%を想定するか
   };
 
-  function necessaryCoverage(period, stockValuationPerShare, sharesHeldByFamily, officerInfo, preparedAssets, assumptions) {
+  function necessaryCoverage(period, stockValuationPerShare, sharesHeldByFamily, officerInfo, preparedAssetsInput, assumptions) {
     const a = { ...COVERAGE_DEFAULTS, ...(assumptions || {}) };
     const monthlyFixedCost = (period.fixedCostAnnualTotal || 0) / 12;
 
@@ -137,10 +137,13 @@ const Scoring = (() => {
     const longTermGuarantee = period.loanSum.longTermGuaranteeTotal || 0;
     const disabilityCapital = monthlyFixedCost * a.disabilityMonths;
 
+    // 「未入力（ヒアリング前）」と「確認済みの0円」を区別する。officerInfoが渡されない
+    // （＝役員情報が未確認）場合は、退職金を0円と断定せず参考値そのものを「ー」扱いにする。
+    const officerDataStatus = officerInfo ? 'confirmed' : 'unconfirmed';
     const finalMonthlyComp = officerInfo?.finalMonthlyCompensation || 0;
     const tenureYears = officerInfo?.tenureYears || 0;
-    const deathRetirement = finalMonthlyComp * tenureYears * a.deathRetirementMultiple;
-    const resignationRetirement = finalMonthlyComp * tenureYears * a.resignationRetirementMultiple;
+    const deathRetirement = officerDataStatus === 'confirmed' ? finalMonthlyComp * tenureYears * a.deathRetirementMultiple : null;
+    const resignationRetirement = officerDataStatus === 'confirmed' ? finalMonthlyComp * tenureYears * a.resignationRetirementMultiple : null;
 
     const stockBuyback = (stockValuationPerShare || 0) * (sharesHeldByFamily || 0) * a.buybackRatio;
 
@@ -154,12 +157,17 @@ const Scoring = (() => {
     const taxGrossUpFactor = 1 / (1 - a.effectiveTaxRate);
     const totalBeforeTax = sum(noGrossUpTotal, grossUpTargetTotal); // 手取り・実額ベースでの合計（参考表示用）
     const total = noGrossUpTotal + grossUpTargetTotal * taxGrossUpFactor;
-    const shortfall = Math.max(0, total - (preparedAssets || 0));
+
+    // 準備済み資産が未確認（ヒアリング前）の間は、不足金額を断定せず null にする
+    // （画面側で「準備済み資産を確認後に確定」等の表示に切り替える）。
+    const preparedAssetsStatus = (preparedAssetsInput === null || preparedAssetsInput === undefined) ? 'unconfirmed' : 'confirmed';
+    const preparedAssets = preparedAssetsStatus === 'confirmed' ? preparedAssetsInput : 0;
+    const shortfall = preparedAssetsStatus === 'confirmed' ? Math.max(0, total - preparedAssets) : null;
 
     return {
       workingCapital, shortTermDebtRepayment, shortTermGuarantee, longTermDebtRepayment, longTermGuarantee,
-      disabilityCapital, deathRetirement, resignationRetirement, stockBuyback,
-      preparedAssets: preparedAssets || 0, noGrossUpTotal, grossUpTargetTotal, totalBeforeTax, taxGrossUpFactor,
+      disabilityCapital, deathRetirement, resignationRetirement, stockBuyback, officerDataStatus,
+      preparedAssets, preparedAssetsStatus, noGrossUpTotal, grossUpTargetTotal, totalBeforeTax, taxGrossUpFactor,
       total, shortfall, assumptions: a,
     };
   }
