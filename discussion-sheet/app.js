@@ -776,8 +776,14 @@ function renderFindings() {
   if (!f) {
     if (tabButton) tabButton.style.display = 'none';
     tabPanel.innerHTML = '';
+    // 空のタブパネルが印刷時のページ割りに紛れ込み、白紙ページが挟まる
+    // ことがあるため、データが無い場合はDOMの表示そのものを打ち消す
+    // （.tab-panel は印刷時に !important で表示されるため、より詳細度の
+    // 高い専用クラスで上書きする）。
+    tabPanel.classList.add('tab-panel-hidden');
     return;
   }
+  tabPanel.classList.remove('tab-panel-hidden');
   if (tabButton) tabButton.style.display = '';
 
   const improvementsBody = `${findingsBullets(f.improvements)}

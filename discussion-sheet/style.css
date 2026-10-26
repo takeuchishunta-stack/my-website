@@ -202,6 +202,7 @@ footer.app-footer { max-width: 1320px; margin: 0 auto; padding: 10px 20px; color
 @media print {
   .app-header, .data-panel, .tabs, .app-footer, .no-print { display: none !important; }
   .tab-panel { display: block !important; }
+  .tab-panel.tab-panel-hidden { display: none !important; }
   .sheet { page-break-after: always; break-after: page; border: none; padding: 6mm 9mm 5mm; margin: 0; }
   .cover-page { page-break-after: always; margin-bottom: 0; min-height: 0; }
   body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
