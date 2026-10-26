@@ -34,6 +34,7 @@
   --sec-scoring: #a3272a;
   --sec-statements: #3a3a38;
   --sec-overview: #2d6a8f;
+  --sec-findings: #6b4a1f;
 }
 @media print { :root { --bg: #ffffff; } }
 

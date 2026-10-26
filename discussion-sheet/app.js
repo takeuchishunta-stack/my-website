@@ -2,8 +2,7 @@
    UI 制御・描画ロジック（DOM 操作はすべてここに集約）
    ========================================================================== */
 
-let STATE = { raw: null, view: null, stockEval: null, scoring: null, coverage: null, outputMode: 'customer' };
-const TOTAL_PAGES = 7;
+let STATE = { raw: null, view: null, stockEval: null, scoring: null, coverage: null, outputMode: 'customer', totalPages: 7 };
 
 // ---- 出力モード切替ヘルパー ---------------------------------------------------
 // internalNotice/internalOnly は「お客様向け」モードでは中身を一切出力しない
@@ -26,13 +25,14 @@ const ICONS = {
   scoring: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6 6.6.6-5 4.4 1.5 6.5L12 16l-5.9 3.5L7.6 13l-5-4.4 6.6-.6z"/></svg>',
   statements: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/></svg>',
   overview: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>',
+  findings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.5"/><path d="M15 15l5.5 5.5"/><path d="M7.5 10h5M10 7.5v5"/></svg>',
 };
 
 function sheetHead(iconKey, colorVar, title, pageNo) {
   return `<div class="sheet-head" style="background:var(${colorVar});">
     <span class="icon-badge">${ICONS[iconKey]}</span>
     <h2>${title}</h2>
-    <span class="page-no">${pageNo}/${TOTAL_PAGES}</span>
+    <span class="page-no">${pageNo}/${STATE.totalPages}</span>
   </div>`;
 }
 function panel(title, body, { span2 = false, tag = '' } = {}) {
@@ -149,7 +149,7 @@ function applyData(data) {
     sharesHeldByFamily,
     data.officers && data.officers[0],
     data.preparedAssets, // null/undefinedのまま渡す（「0円」と「未確認」を区別するため）
-    {}
+    data.coverageAssumptions || {}
   );
 
   renderAll();
@@ -172,6 +172,7 @@ function renderCover() {
     ['overview', '--sec-overview', '4つの観点まとめ', '各観点の要点を1枚に整理し、全体像を確認します。', 5],
     ['statements', '--sec-statements', '決算情報', '貸借対照表・損益計算書の3期推移です。', 6],
     ['scoring', '--sec-scoring', 'スコアリング', '定量データに基づく財務判定の根拠です。', 7],
+    ...(data.findingsReport ? [['findings', '--sec-findings', '指摘事項・改善の優先順位', 'ヒアリングを踏まえた所見と、次の一手の優先順位です。', 8]] : []),
   ].map(([key, color, title, desc, page]) => `
     <div class="idx-row">
       <span class="icon-badge" style="background:${color.startsWith('--') ? `var(${color})` : color};">${ICONS[key]}</span>
@@ -197,6 +198,7 @@ function renderCover() {
 }
 
 function renderAll() {
+  STATE.totalPages = STATE.raw.findingsReport ? 9 : 7;
   renderCover();
   renderFinancial();
   renderCashFlow();
@@ -205,6 +207,7 @@ function renderAll() {
   renderOverview();
   renderStatements();
   renderScoring();
+  renderFindings();
 }
 
 // ---- 1. 財務の観点 ----------------------------------------------------------
@@ -460,10 +463,17 @@ function renderCoverage() {
     : '役員情報（最終報酬月額・在任年数）が未確認のため算出不可';
   const rows = [
     ['①運転資金', c.workingCapital, `月額固定費 × ${c.assumptions.workingCapitalMonths}ヶ月`],
-    ['②負債等の返済資金（短期）', c.shortTermDebtRepayment, '短期借入金＋1年以内返済長期借入金'],
-    ['　内、連帯保証債務（短期）[参考]', c.shortTermGuarantee, '短期の連帯保証額合計'],
-    ['③負債等の返済資金（長期）', c.longTermDebtRepayment, '長期借入金残高'],
-    ['　内、連帯保証債務（長期）[参考]', c.longTermGuarantee, '長期の連帯保証額合計'],
+    ...(c.hasBorrowingsOverride
+      ? [
+          ['②③負債等の返済資金（現在の借入金残高）', c.longTermDebtRepayment, c.assumptions.currentBorrowingsNote || 'ヒアリングベースの現在の借入金残高（決算書未掲載分を含む）'],
+          ['　参考：直近期決算書に計上されている借入金残高', c.borrowingsAtFiscalYearEnd, '決算書に基づく有利子負債残高（期中の追加借入は未反映）'],
+        ]
+      : [
+          ['②負債等の返済資金（短期）', c.shortTermDebtRepayment, '短期借入金＋1年以内返済長期借入金'],
+          ['　内、連帯保証債務（短期）[参考]', c.shortTermGuarantee, '短期の連帯保証額合計'],
+          ['③負債等の返済資金（長期）', c.longTermDebtRepayment, '長期借入金残高'],
+          ['　内、連帯保証債務（長期）[参考]', c.longTermGuarantee, '長期の連帯保証額合計'],
+        ]),
     ['④役員死亡退職金[参考]', c.deathRetirement, retirementBasis],
     ['　役員勇退退職金[参考]', c.resignationRetirement, officerConfirmed ? `最終報酬月額 × 在任年数 × 功績倍率${c.assumptions.resignationRetirementMultiple}` : retirementBasis],
     ['⑤事業承継対策資金（自社株買取資金）', c.stockBuyback, '自社株評価額（法人税評価） × 同族保有株数'],
@@ -742,6 +752,79 @@ function renderScoring() {
     </div>
   </div>`;
   document.getElementById('tab-scoring').innerHTML = html;
+}
+
+// ---- 8. 指摘事項（ヒアリング・アドバイザー所見） -------------------------------
+// data.findingsReport が無ければ何も描画しない（既存サンプルとの後方互換）。
+// 内容は参照元ドキュメントの文言を変更せずそのまま反映する（一言一句まるまる参照）。
+function findingsTable(t) {
+  if (!t) return '';
+  return `<table class="dsheet compact"><thead><tr>${t.headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>
+    ${t.rows.map(r => `<tr>${r.map(c => `<td style="text-align:left;">${c}</td>`).join('')}</tr>`).join('')}
+    </tbody></table>`;
+}
+function findingsBullets(items) {
+  return `<ul style="margin:4px 0 0;padding-left:16px;font-size:0.72rem;line-height:1.65;color:var(--ink);">
+    ${items.map(([lead, rest]) => `<li>${lead ? `<b>${lead}</b> ` : ''}${rest}</li>`).join('')}
+    </ul>`;
+}
+
+function renderFindings() {
+  const f = STATE.raw.findingsReport;
+  const tabButton = document.querySelector('.tab-btn[data-tab="tab-findings"]');
+  const tabPanel = document.getElementById('tab-findings');
+  if (!f) {
+    if (tabButton) tabButton.style.display = 'none';
+    tabPanel.innerHTML = '';
+    return;
+  }
+  if (tabButton) tabButton.style.display = '';
+
+  const improvementsBody = `${findingsBullets(f.improvements)}
+    <div class="caption" style="margin-top:6px;">${f.improvementsNote}</div>`;
+  const summaryBody = findingsTable(f.summaryTable);
+
+  const medicalSections = (f.medicalCorpSections || []).map(sec => `
+    <div class="panel">
+      <h3>${sec.title}</h3>
+      ${sec.table ? findingsTable(sec.table) : ''}
+      ${findingsBullets(sec.bullets)}
+    </div>`).join('');
+
+  const pageA = `<div class="sheet">
+    ${sheetHead('findings', '--sec-findings', '指摘事項①：医療法人への指摘', 8)}
+    <div class="sheet-sub">${f.intro}</div>
+    <div class="grid-2">
+      ${panel(f.improvementsHeading, improvementsBody, { span2: true })}
+      ${panel(f.summaryHeading, summaryBody, { span2: true })}
+    </div>
+    <div class="sheet-sub" style="margin-top:10px;font-weight:700;color:var(--ink);">${f.medicalCorpHeading}</div>
+    <div class="grid-2">
+      ${medicalSections}
+    </div>
+  </div>`;
+
+  const subsidiaryBody = `<div class="caption" style="margin-bottom:4px;">${f.subsidiaryIntro}</div>
+    ${findingsTable(f.subsidiaryTable)}
+    ${findingsBullets(f.subsidiaryBullets)}`;
+  const structureBody = findingsBullets(f.structureBullets);
+  const priorityBody = findingsTable(f.priorityTable);
+  const closingBody = `<ul style="margin:0;padding-left:16px;font-size:0.76rem;line-height:1.8;color:var(--ink);">
+      ${f.closingBullets.map(b => `<li>${b}</li>`).join('')}
+    </ul>
+    <div class="caption" style="margin-top:8px;font-style:italic;">${f.footnote}</div>`;
+
+  const pageB = `<div class="sheet">
+    ${sheetHead('findings', '--sec-findings', '指摘事項②：子会社・体制の観点', 9)}
+    <div class="grid-2">
+      ${panel(f.subsidiaryHeading, subsidiaryBody, { span2: true })}
+      ${panel(f.structureHeading, structureBody, { span2: true })}
+      ${panel(f.priorityHeading, priorityBody, { span2: true })}
+      ${panel(f.closingHeading, closingBody, { span2: true })}
+    </div>
+  </div>`;
+
+  tabPanel.innerHTML = pageA + pageB;
 }
 
 // ---- Excel エクスポート -----------------------------------------------------

@@ -123,6 +123,10 @@ const Scoring = (() => {
     effectiveTaxRate: 0.3358,      // 実効税率：保険金受取時の益金算入等を見込み、必要保障額を手取りベースから
                                    // 保険金額（グロス）ベースに割り戻すために使用する
     buybackRatio: 1.0,             // ⑨自社株買取資金＝自社株評価額の何%を想定するか
+    currentBorrowingsOverride: null, // 決算書に未掲載の期中借入等、ヒアリングで確認した「現在の」
+                                      // 借入金残高で②③を上書きしたい場合に設定する（円）。
+                                      // 設定すると②短期・③長期をこの1本の額に置き換える。
+    currentBorrowingsNote: null,     // 上記を使う根拠（例：ヒアリング日・追加借入の内訳）
   };
 
   function necessaryCoverage(period, stockValuationPerShare, sharesHeldByFamily, officerInfo, preparedAssetsInput, assumptions) {
@@ -130,10 +134,17 @@ const Scoring = (() => {
     const monthlyFixedCost = (period.fixedCostAnnualTotal || 0) / 12;
 
     const workingCapital = monthlyFixedCost * a.workingCapitalMonths;
-    const shortTermDebtRepayment = (period.bsSum.currentLiabilitiesInterestBearing) ||
-      (period.loanSum.shortTermTotal + (period.bs.currentPortionLongTermLoans || 0));
+    const hasBorrowingsOverride = a.currentBorrowingsOverride != null;
+    // 決算書記載の借入金残高（参考表示用）。期中に決算書未掲載の借入があった場合は、
+    // currentBorrowingsOverride で②③の計算対象をヒアリングベースの現在残高に置き換える。
+    const borrowingsAtFiscalYearEnd = sum(
+      period.bsSum.currentLiabilitiesInterestBearing || (period.loanSum.shortTermTotal + (period.bs.currentPortionLongTermLoans || 0)),
+      period.bs.longTermLoans || 0
+    );
+    const shortTermDebtRepayment = hasBorrowingsOverride ? 0 : ((period.bsSum.currentLiabilitiesInterestBearing) ||
+      (period.loanSum.shortTermTotal + (period.bs.currentPortionLongTermLoans || 0)));
     const shortTermGuarantee = period.loanSum.shortTermGuaranteeTotal || 0;
-    const longTermDebtRepayment = period.bs.longTermLoans || 0;
+    const longTermDebtRepayment = hasBorrowingsOverride ? a.currentBorrowingsOverride : (period.bs.longTermLoans || 0);
     const longTermGuarantee = period.loanSum.longTermGuaranteeTotal || 0;
     const disabilityCapital = monthlyFixedCost * a.disabilityMonths;
 
@@ -168,6 +179,7 @@ const Scoring = (() => {
       workingCapital, shortTermDebtRepayment, shortTermGuarantee, longTermDebtRepayment, longTermGuarantee,
       disabilityCapital, deathRetirement, resignationRetirement, stockBuyback, officerDataStatus,
       preparedAssets, preparedAssetsStatus, noGrossUpTotal, grossUpTargetTotal, totalBeforeTax, taxGrossUpFactor,
+      hasBorrowingsOverride, borrowingsAtFiscalYearEnd,
       total, shortfall, assumptions: a,
     };
   }
